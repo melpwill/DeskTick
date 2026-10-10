@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # 同一リポジトリのブランチからの PR は push 側で実行済みのため重複させない
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        script: [lint, format:check, typecheck]
+    name: ${{ matrix.script }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm ${{ matrix.script }}
+
+  test:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+  build-windows:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify tag matches package.json version
+        shell: bash
+        run: |
+          VERSION="v$(node -p "require('./package.json').version")"
+          if [ "$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $VERSION"
+            exit 1
+          fi
+      - run: pnpm dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DeskTick-${{ github.ref_name }}
+          path: release/DeskTick/
+
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: DeskTick-${{ github.ref_name }}
+          path: release/DeskTick
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "DeskTick $GITHUB_REF_NAME" \
+            --notes "DeskTick $GITHUB_REF_NAME — DeskTick.exe と config.json を同じディレクトリに置いて起動してください。" \
+            release/DeskTick/DeskTick.exe \
+            release/DeskTick/config.json

@@ -1,0 +1,57 @@
+{
+  "name": "desktick",
+  "productName": "DeskTick",
+  "version": "1.0.0",
+  "description": "DeskTick - desktop clock with work reminders",
+  "main": "dist/main.js",
+  "private": true,
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test:coverage",
+    "build": "pnpm typecheck && node scripts/build.mts",
+    "start": "pnpm build && install-electron && electron .",
+    "dist": "pnpm build && electron-builder --win portable --publish never && node scripts/package.mts"
+  },
+  "build": {
+    "appId": "jp.melpwill.desktick",
+    "productName": "DeskTick",
+    "files": [
+      "dist/**/*",
+      "static/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "static/icon.png"
+    },
+    "portable": {
+      "artifactName": "DeskTick.exe"
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/lodash-es": "^4.17.12",
+    "@vitest/coverage-v8": "^5.0.3",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "eslint-plugin-jsdoc": "^65.2.2",
+    "globals": "^17.13.0",
+    "jsdom": "^29.1.1",
+    "lodash-es": "^4.18.1",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  },
+  "packageManager": "pnpm@11.28.5"
+}

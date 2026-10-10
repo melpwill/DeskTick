@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>DeskTick</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+        overflow: hidden;
+        user-select: none;
+        cursor: default;
+      }
+      #box {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        white-space: nowrap;
+        line-height: normal;
+        -webkit-app-region: drag;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="box">
+      <div id="line1"></div>
+      <div id="line2"></div>
+    </div>
+    <script src="../dist/renderer/clock.js"></script>
+  </body>
+</html>

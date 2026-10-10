@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>DeskTick 設定</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --accent: #2f7de1;
+        --line: color-mix(in srgb, CanvasText 15%, transparent);
+        --muted: color-mix(in srgb, CanvasText 60%, transparent);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        grid-template-rows: 1fr auto;
+        font:
+          13px "Yu Gothic UI",
+          "Segoe UI",
+          sans-serif;
+        background: Canvas;
+        color: CanvasText;
+      }
+      nav {
+        grid-row: 1 / 3;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 12px 8px;
+        border-right: 1px solid var(--line);
+      }
+      nav button {
+        text-align: left;
+        padding: 8px 12px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      nav button:hover {
+        background: color-mix(in srgb, CanvasText 8%, transparent);
+      }
+      nav button.active {
+        background: color-mix(in srgb, var(--accent) 20%, transparent);
+        font-weight: 600;
+      }
+      main {
+        overflow-y: auto;
+        padding: 16px 20px;
+      }
+      footer {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 20px;
+        border-top: 1px solid var(--line);
+      }
+      h2 {
+        font-size: 15px;
+        margin: 0 0 12px;
+      }
+      h3 {
+        font-size: 13px;
+        margin: 20px 0 8px;
+        color: var(--muted);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 130px 1fr;
+        align-items: center;
+        gap: 8px;
+        margin: 8px 0;
+      }
+      .row > label:first-child {
+        color: var(--muted);
+      }
+      .inline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      input[type="text"],
+      input[type="number"],
+      select {
+        font: inherit;
+        padding: 4px 6px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: Field;
+        color: FieldText;
+      }
+      input[type="text"] {
+        width: 100%;
+        max-width: 320px;
+      }
+      textarea {
+        font: inherit;
+        width: 100%;
+        max-width: 420px;
+        padding: 4px 6px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: Field;
+        color: FieldText;
+        resize: vertical;
+      }
+      input[type="time"] {
+        font: inherit;
+        padding: 3px 6px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: Field;
+        color: FieldText;
+      }
+      .days label {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        margin-right: 8px;
+      }
+      input[type="date"] {
+        font: inherit;
+        padding: 3px 6px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: Field;
+        color: FieldText;
+      }
+
+      /* 通知タブ */
+      .alerts {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 16px;
+      }
+      .alert-list {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding-right: 12px;
+        border-right: 1px solid var(--line);
+      }
+      .list-head {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 10px 8px 2px;
+      }
+      .list-head:first-child {
+        margin-top: 0;
+      }
+      .alert-item {
+        text-align: left;
+        padding: 6px 8px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      .alert-item:hover {
+        background: color-mix(in srgb, CanvasText 8%, transparent);
+      }
+      .alert-item.active {
+        background: color-mix(in srgb, var(--accent) 20%, transparent);
+      }
+      .alert-item .name {
+        font-weight: 600;
+      }
+      .alert-item.off .name {
+        color: var(--muted);
+        font-weight: normal;
+      }
+      .alert-item .sum {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .alert-list .add {
+        margin-top: 6px;
+      }
+      .alert-editor .row {
+        grid-template-columns: 90px 1fr;
+      }
+      .alert-editor h3:first-child {
+        margin-top: 0;
+      }
+      .editor-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .editor-head h3 {
+        margin: 0;
+        font-size: 15px;
+        color: CanvasText;
+      }
+      .editor-head .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .editor-foot {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 16px;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 1px 2px 1px 8px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .chip button {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        padding: 0 4px;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      button.btn.small {
+        padding: 3px 10px;
+      }
+      button.btn.danger {
+        color: #d33;
+      }
+      input[type="number"] {
+        width: 80px;
+      }
+      input[type="range"] {
+        width: 160px;
+      }
+      input[type="color"] {
+        width: 44px;
+        height: 28px;
+        padding: 0 2px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      input.invalid {
+        border-color: #d33;
+      }
+      .msg {
+        color: #d33;
+        font-size: 12px;
+        min-height: 1em;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+        margin: 4px 0;
+      }
+      button.btn {
+        font: inherit;
+        padding: 5px 14px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: ButtonFace;
+        color: ButtonText;
+        cursor: pointer;
+      }
+      button.btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .preview-wrap {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 18px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        background: repeating-conic-gradient(#666 0 25%, #777 0 50%) 0 0 / 16px 16px;
+      }
+      #preview {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        white-space: nowrap;
+        line-height: normal;
+      }
+      table {
+        border-collapse: collapse;
+        margin: 4px 0 8px;
+      }
+      td,
+      th {
+        padding: 3px 12px 3px 0;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: normal;
+        white-space: nowrap;
+      }
+      code {
+        font-family: Consolas, "UDEV Gothic", monospace;
+      }
+      .about-head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 8px;
+      }
+      .about-head img {
+        width: 56px;
+        height: 56px;
+      }
+      .about-head .name {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .path {
+        word-break: break-all;
+        font-family: Consolas, monospace;
+        font-size: 12px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <button data-tab="display">表示</button>
+      <button data-tab="format">表示形式</button>
+      <button data-tab="position">位置</button>
+      <button data-tab="ntp">時刻同期</button>
+      <button data-tab="alerts">通知</button>
+      <button data-tab="startup">起動</button>
+      <button data-tab="about">情報 / ヘルプ</button>
+    </nav>
+
+    <main>
+      <div class="preview-wrap" id="previewWrap">
+        <div id="preview">
+          <div id="pv1"></div>
+          <div id="pv2"></div>
+        </div>
+      </div>
+
+      <section data-panel="display">
+        <h2>表示</h2>
+        <h3>フォント</h3>
+        <div class="row">
+          <label for="fontFamily">フォント名</label>
+          <div>
+            <input type="text" id="fontFamily" data-key="font.family" list="fontList" placeholder="読み込み中..." />
+            <datalist id="fontList"></datalist>
+          </div>
+        </div>
+        <div class="row">
+          <label for="fontWeight">太さ</label>
+          <select id="fontWeight" data-key="font.weight" data-type="number">
+            <option value="100">100 Thin</option>
+            <option value="200">200 ExtraLight</option>
+            <option value="300">300 Light</option>
+            <option value="400">400 Regular</option>
+            <option value="500">500 Medium</option>
+            <option value="600">600 SemiBold</option>
+            <option value="700">700 Bold</option>
+            <option value="800">800 ExtraBold</option>
+            <option value="900">900 Black</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>サイズ (px)</label>
+          <div class="inline">
+            1行目 <input type="number" data-key="font.line1Size" min="6" max="200" /> 2行目
+            <input type="number" data-key="font.line2Size" min="6" max="200" />
+          </div>
+        </div>
+
+        <h3>文字色</h3>
+        <div class="row">
+          <label>色 / 不透明度</label>
+          <div class="inline">
+            <input type="color" data-key="foreground.color" />
+            <input type="range" data-key="foreground.alpha" min="0" max="1" step="0.01" />
+            <span data-percent="foreground.alpha"></span>
+          </div>
+        </div>
+        <div class="row">
+          <label for="shadow">影</label>
+          <div><input type="checkbox" id="shadow" data-key="shadow" /></div>
+        </div>
+
+        <h3>背景色</h3>
+        <div class="row">
+          <label>色 / 不透明度</label>
+          <div class="inline">
+            <input type="color" data-key="background.color" />
+            <input type="range" data-key="background.alpha" min="0" max="1" step="0.01" />
+            <span data-percent="background.alpha"></span>
+          </div>
+        </div>
+        <div class="row">
+          <label>余白 / 角丸 (px)</label>
+          <div class="inline">
+            余白 <input type="number" data-key="padding" min="0" max="100" /> 角丸
+            <input type="number" data-key="cornerRadius" min="0" max="100" />
+          </div>
+        </div>
+      </section>
+
+      <section data-panel="format">
+        <h2>表示形式</h2>
+        <div class="row">
+          <label for="line1">1行目</label>
+          <div>
+            <input type="text" id="line1" data-key="format.line1" list="line1Presets" />
+            <datalist id="line1Presets">
+              <option value="YYYY-MM-DD (week)"></option>
+              <option value="YYYY/MM/DD (ddd)"></option>
+              <option value="YYYY年M月D日 (ddd)"></option>
+              <option value="M/D dddd"></option>
+              <option value="MMM D, YYYY"></option>
+            </datalist>
+          </div>
+        </div>
+        <div class="row">
+          <label for="line2">2行目</label>
+          <div>
+            <input type="text" id="line2" data-key="format.line2" list="line2Presets" />
+            <datalist id="line2Presets">
+              <option value="HH:mm:ss"></option>
+              <option value="HH:mm"></option>
+              <option value="h:mm:ss A"></option>
+              <option value="A h:mm"></option>
+            </datalist>
+          </div>
+        </div>
+        <p class="note">空欄にするとその行は表示しません。</p>
+
+        <div class="row">
+          <label for="locale">ロケール</label>
+          <div>
+            <input
+              type="text"
+              id="locale"
+              data-key="locale"
+              data-commit="change"
+              list="localeList"
+              placeholder="空欄 = システム既定"
+            />
+            <datalist id="localeList">
+              <option value="en-US"></option>
+              <option value="ja-JP"></option>
+              <option value="en-GB"></option>
+              <option value="zh-CN"></option>
+              <option value="zh-TW"></option>
+              <option value="ko-KR"></option>
+              <option value="de-DE"></option>
+              <option value="fr-FR"></option>
+            </datalist>
+            <div class="msg" data-msg="locale"></div>
+          </div>
+        </div>
+        <div class="row">
+          <label for="timeZone">タイムゾーン</label>
+          <div>
+            <input
+              type="text"
+              id="timeZone"
+              data-key="timeZone"
+              data-commit="change"
+              list="tzList"
+              placeholder="空欄 = システム既定"
+            />
+            <datalist id="tzList"></datalist>
+            <div class="msg" data-msg="timeZone"></div>
+          </div>
+        </div>
+        <p class="note">ロケールは曜日・月名・午前/午後の言語に使われます（例: en-US → Sat, ja-JP → 土）。</p>
+
+        <h3>書式トークン</h3>
+        <table class="tokens"></table>
+      </section>
+
+      <section data-panel="position">
+        <h2>位置</h2>
+        <div class="row">
+          <label for="display">ディスプレイ</label>
+          <select id="display" data-key="position.display" data-type="number"></select>
+        </div>
+        <div class="row">
+          <label for="corner">基準の角</label>
+          <select id="corner" data-key="position.corner">
+            <option value="top-right">右上</option>
+            <option value="top-left">左上</option>
+            <option value="bottom-right">右下</option>
+            <option value="bottom-left">左下</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>余白 (px)</label>
+          <div class="inline">
+            横 <input type="number" data-key="position.marginX" min="-2000" max="2000" /> 縦
+            <input type="number" data-key="position.marginY" min="-2000" max="2000" />
+          </div>
+        </div>
+        <div class="row">
+          <span></span>
+          <div><button class="btn" id="moveToDefault">今すぐデフォルト位置へ移動</button></div>
+        </div>
+        <p class="note">
+          起動時と「デフォルト位置に戻す」でこの位置に置かれます。<br />ドラッグで動かした位置は保存されません。
+        </p>
+
+        <h3>重なり順</h3>
+        <div class="row">
+          <label for="alwaysOnTop">最前面に固定</label>
+          <div><input type="checkbox" id="alwaysOnTop" data-key="alwaysOnTop" /></div>
+        </div>
+      </section>
+
+      <section data-panel="ntp">
+        <h2>時刻同期 (NTP)</h2>
+        <div class="row">
+          <label for="ntpEnabled">NTPを使う</label>
+          <div><input type="checkbox" id="ntpEnabled" data-key="ntp.enabled" /></div>
+        </div>
+        <div class="row">
+          <label for="ntpServer">NTPサーバ</label>
+          <div>
+            <input type="text" id="ntpServer" data-key="ntp.server" data-commit="change" list="ntpList" />
+            <datalist id="ntpList">
+              <option value="ntp.nict.jp"></option>
+              <option value="time.windows.com"></option>
+              <option value="time.google.com"></option>
+              <option value="ntp.jst.mfeed.ad.jp"></option>
+              <option value="pool.ntp.org"></option>
+            </datalist>
+            <div class="msg" data-msg="ntp.server"></div>
+          </div>
+        </div>
+        <div class="row">
+          <label for="ntpInterval">同期間隔 (分)</label>
+          <div>
+            <input type="number" id="ntpInterval" data-key="ntp.intervalMin" data-commit="change" min="1" max="1440" />
+          </div>
+        </div>
+        <div class="row">
+          <label>状態</label>
+          <div id="ntpStatus">-</div>
+        </div>
+        <div class="row">
+          <span></span>
+          <div><button class="btn" id="ntpSync">今すぐ同期</button></div>
+        </div>
+        <p class="note">
+          PCの時計は変更せず、時計の表示だけをNTPサーバの時刻に合わせます。<br />
+          同期できない場合は前回のずれ（初回はPCの時刻）を使います。<br />
+          UDP 123番ポートを使用します。
+        </p>
+      </section>
+
+      <section data-panel="alerts">
+        <h2>通知</h2>
+        <div class="alerts">
+          <div class="alert-list" id="alertList"></div>
+          <div class="alert-editor" id="alertEditor"></div>
+        </div>
+        <p class="note">
+          アプリが起動している間だけ通知します。<br />
+          起動していなかった時間やスリープ中の時刻は、あとから通知しません。
+        </p>
+      </section>
+
+      <section data-panel="startup">
+        <h2>起動</h2>
+        <div class="row">
+          <label for="autoStart">Windows起動時に開始</label>
+          <div><input type="checkbox" id="autoStart" /></div>
+        </div>
+        <p class="note" id="autoStartNote"></p>
+      </section>
+
+      <section data-panel="about">
+        <div class="about-head">
+          <img src="icon.png" alt="" />
+          <div>
+            <div class="name" id="aboutName">DeskTick</div>
+            <div>バージョン <span id="aboutVersion"></span></div>
+          </div>
+        </div>
+        <p>
+          デスクトップの隅に日付と時刻を常に表示する時計アプリです。<br />
+          通知領域に常駐し、次の機能があります。
+        </p>
+        <ul>
+          <li>最前面に表示する時計 (フォント・色・表示形式・位置を変更可能)</li>
+          <li>NTPサーバの時刻に合わせた表示</li>
+          <li>定時・起立・水分補給・食事・カスタムの通知 (一定間隔 / 指定時刻)</li>
+        </ul>
+        <h3>バージョン情報</h3>
+        <table>
+          <tr>
+            <th>Electron</th>
+            <td id="aboutElectron"></td>
+          </tr>
+          <tr>
+            <th>Chromium</th>
+            <td id="aboutChrome"></td>
+          </tr>
+          <tr>
+            <th>Node.js</th>
+            <td id="aboutNode"></td>
+          </tr>
+          <tr>
+            <th>実行ファイル</th>
+            <td class="path" id="aboutExe"></td>
+          </tr>
+          <tr>
+            <th>設定ファイル</th>
+            <td class="path" id="aboutSettings"></td>
+          </tr>
+        </table>
+        <button class="btn" id="openFolder">設定ファイルの場所を開く</button>
+
+        <h3>使い方</h3>
+        <table>
+          <tr>
+            <th>移動</th>
+            <td>時計をドラッグ</td>
+          </tr>
+          <tr>
+            <th>メニュー</th>
+            <td>時計を右クリック / 通知領域のアイコンを右クリック</td>
+          </tr>
+          <tr>
+            <th>表示 / 非表示</th>
+            <td>通知領域のアイコンをクリック</td>
+          </tr>
+          <tr>
+            <th>終了</th>
+            <td>メニューの「終了」、または時計をクリックして Esc</td>
+          </tr>
+        </table>
+        <p class="note">
+          設定はexeと同じディレクトリのconfig.jsonに保存され、変更するとすぐ反映されます。<br />
+          config.jsonを直接編集した場合も、保存すると自動で読み込み直します（JSONが不正な間は無視）。<br />
+          config.jsonがない場合は初期値で作成されます。<br />
+          配布はexeとconfig.jsonの2ファイルだけで動作します。
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <button class="btn" id="reset">すべて初期値に戻す</button>
+      <button class="btn" id="close">閉じる</button>
+    </footer>
+
+    <script src="../dist/renderer/settings.js"></script>
+  </body>
+</html>
