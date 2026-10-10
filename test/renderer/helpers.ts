@@ -13,8 +13,9 @@ import type { NtpStatus } from "@/shared/types";
  */
 export const loadBody = (file: string): string => {
   const html: string = readFileSync(join(__dirname, "../../static", file), "utf8");
-  const body: string = /<body[^>]*>([\s\S]*)<\/body>/i.exec(html)![1];
-  return body.replace(/<script[\s\S]*?<\/script>/gi, "");
+  const doc: Document = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script").forEach((el: Element) => el.remove());
+  return doc.body.innerHTML;
 };
 
 /**
