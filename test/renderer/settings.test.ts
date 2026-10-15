@@ -85,6 +85,11 @@ describe("static content", () => {
     expect($("aboutNode").textContent).toBe("24.0.0");
     expect($("aboutExe").textContent).toBe("C:/DeskTick.exe");
     expect($("aboutSettings").textContent).toBe("C:/config.json");
+    expect(Array.from($("licenses").querySelectorAll("th")).map((th) => th.textContent)).toEqual([
+      "Electron",
+      "lodash-es",
+      "Chromium / Node.js",
+    ]);
 
     expect(Array.from($("fontList").querySelectorAll("option")).map((o) => o.value)).toEqual(["Arial", "Meiryo"]);
     expect($<HTMLInputElement>("fontFamily").placeholder).toBe("");
@@ -349,13 +354,15 @@ describe("NTP status", () => {
 });
 
 describe("buttons", () => {
-  it("時計の移動・ディレクトリを開く・ウィンドウを閉じる操作をする", async () => {
+  it("時計の移動・ディレクトリやライセンスを開く・ウィンドウを閉じる操作をする", async () => {
     const close = vi.spyOn(window, "close").mockImplementation(() => {});
     await load();
     $("moveToDefault").click();
     expect(m.api.moveToDefault).toHaveBeenCalledTimes(1);
     $("openFolder").click();
     expect(m.api.openSettingsFolder).toHaveBeenCalledTimes(1);
+    $("openLicenses").click();
+    expect(m.api.openLicenses).toHaveBeenCalledTimes(1);
     $("close").click();
     expect(close).toHaveBeenCalledTimes(1);
   });

@@ -20,7 +20,7 @@ import { toDisplayInfos } from "@/main/displays";
 import { listFonts } from "@/main/fonts";
 import { createNotifier, type Notifier } from "@/main/notifier";
 import { createNtpSync, type NtpSync } from "@/main/ntp";
-import { resolveExePath } from "@/main/paths";
+import { resolveExePath, resolveLicensesPath } from "@/main/paths";
 import { anchoredBounds, contentSize, defaultPosition, pickDisplay, type Rect, type Size } from "@/main/placement";
 import { diffSettings, type SettingsChanges } from "@/main/settingsChanges";
 import { createSettingsStore, type SettingsStore } from "@/main/store";
@@ -337,6 +337,7 @@ const registerIpc = (): void => {
     store.flush();
     shell.showItemInFolder(store.file);
   });
+  ipcMain.on("app:open-licenses", () => void shell.openPath(resolveLicensesPath(process.execPath)));
 };
 
 /**

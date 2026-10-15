@@ -30,6 +30,7 @@ export interface Api {
   setAutoStart: (enabled: boolean) => Promise<AutoStartInfo>;
   getAppInfo: () => Promise<AppInfo>;
   openSettingsFolder: () => void;
+  openLicenses: () => void;
 }
 
 const api: Api = {
@@ -132,6 +133,11 @@ const api: Api = {
    * @return {void} - なし
    */
   openSettingsFolder: (): void => ipcRenderer.send("app:open-settings-folder"),
+  /**
+   * @description - サードパーティのライセンス一覧を開く
+   * @return {void} - なし
+   */
+  openLicenses: (): void => ipcRenderer.send("app:open-licenses"),
 };
 
 contextBridge.exposeInMainWorld("api", api);

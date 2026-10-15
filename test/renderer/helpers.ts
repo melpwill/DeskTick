@@ -84,6 +84,7 @@ export const mockApi = (): MockApi => {
       exePath: "C:/DeskTick.exe",
     })),
     openSettingsFolder: vi.fn(),
+    openLicenses: vi.fn(),
   };
   return { api, cb };
 };
