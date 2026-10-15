@@ -1,6 +1,6 @@
 import * as path from "path";
 import { describe, expect, it, vi } from "vitest";
-import { resolveConfigDir, resolveExePath } from "@/main/paths";
+import { resolveConfigDir, resolveExePath, resolveLicensesPath } from "@/main/paths";
 
 describe("resolveExePath", () => {
   it("PORTABLE_EXECUTABLE_FILEを優先する", () => {
@@ -12,6 +12,13 @@ describe("resolveExePath", () => {
   it("未設定または空ならexecPathを使う", () => {
     expect(resolveExePath({}, "C:\\tmp\\x.exe")).toBe("C:\\tmp\\x.exe");
     expect(resolveExePath({ PORTABLE_EXECUTABLE_FILE: "" }, "C:\\tmp\\x.exe")).toBe("C:\\tmp\\x.exe");
+  });
+});
+
+describe("resolveLicensesPath", () => {
+  it("実行中のexeと同じディレクトリのLICENSES.chromium.htmlを返す", () => {
+    const exe = path.join("C:\\tmp\\x", "DeskTick.exe");
+    expect(resolveLicensesPath(exe)).toBe(path.join("C:\\tmp\\x", "LICENSES.chromium.html"));
   });
 });
 

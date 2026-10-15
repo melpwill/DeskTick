@@ -11,6 +11,14 @@ export type Env = Readonly<Record<string, string | undefined>>;
 export const resolveExePath = (env: Env, execPath: string): string => env.PORTABLE_EXECUTABLE_FILE || execPath;
 
 /**
+ * @description - Electronに同梱されたサードパーティのライセンス一覧のパスを返す
+ * @param {string} execPath - 実行中プロセスのパス（portable形式では一時ディレクトリに展開されたexe）
+ * @return {string} - LICENSES.chromium.htmlのパス
+ */
+export const resolveLicensesPath = (execPath: string): string =>
+  path.join(path.dirname(execPath), "LICENSES.chromium.html");
+
+/**
  * @description - config.jsonを置くディレクトリを返す
  * @param {Env} env - 環境変数
  * @param {boolean} isPackaged - パッケージ済みかどうか

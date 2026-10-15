@@ -3,6 +3,8 @@
   "productName": "DeskTick",
   "version": "1.0.0",
   "description": "DeskTick - desktop clock with work reminders",
+  "author": "melpwill",
+  "license": "MIT",
   "main": "dist/main.js",
   "private": true,
   "scripts": {
@@ -20,10 +22,12 @@
   "build": {
     "appId": "jp.melpwill.desktick",
     "productName": "DeskTick",
+    "copyright": "Copyright (c) 2026 melpwill",
     "files": [
       "dist/**/*",
       "static/**/*",
-      "package.json"
+      "package.json",
+      "LICENSE"
     ],
     "directories": {
       "output": "release"

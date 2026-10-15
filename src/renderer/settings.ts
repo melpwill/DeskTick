@@ -62,6 +62,7 @@ const bindButtons = (): void => {
   byId("ntpSync").addEventListener("click", () => void api.syncNtp());
   byId("moveToDefault").addEventListener("click", () => api.moveToDefault());
   byId("openFolder").addEventListener("click", () => api.openSettingsFolder());
+  byId("openLicenses").addEventListener("click", () => api.openLicenses());
   byId("close").addEventListener("click", () => window.close());
   byId("reset").addEventListener("click", resetAll);
 };
