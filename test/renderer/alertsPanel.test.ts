@@ -91,7 +91,7 @@ describe("list", () => {
     expect(item("朝食").className).toBe("alert-item off");
     expect(item("起立").className).toBe("alert-item");
     expect(item("定時").querySelector(".sum")!.textContent).toBe("18:00 / 平日");
-    expect(item("起立").querySelector(".sum")!.textContent).toBe("30分ごと (09:00〜18:00) / 平日");
+    expect(item("起立").querySelector(".sum")!.textContent).toBe("30分ごと (09:45〜17:00) / 平日");
     expect(listEl.lastElementChild!.textContent).toBe("+ カスタムを追加");
   });
 
@@ -184,8 +184,8 @@ describe("interval rows", () => {
     expect(toggle().checked).toBe(true);
     expect(hours().value).toBe("0");
     expect(mins().value).toBe("30");
-    expect(from().value).toBe("09:00");
-    expect(to().value).toBe("18:00");
+    expect(from().value).toBe("09:45");
+    expect(to().value).toBe("17:00");
     expect(message()).toBe("");
   });
 
