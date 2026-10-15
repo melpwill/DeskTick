@@ -8,6 +8,7 @@ import {
   pickDisplay,
   type PositionSettings,
   type Rect,
+  stackBounds,
 } from "@/main/placement";
 import { type Corner } from "@/shared/settings";
 
@@ -84,5 +85,22 @@ describe("contentSize", () => {
 
   it("最小でも1pxにする", () => {
     expect(contentSize(0, -5)).toEqual({ width: 1, height: 1 });
+  });
+});
+
+describe("stackBounds", () => {
+  it("右下から上へ間隔をあけて積み重ねる", () => {
+    const sizes = [
+      { width: 340, height: 100 },
+      { width: 300, height: 80 },
+    ];
+    expect(stackBounds(workArea, sizes, 12)).toEqual([
+      { x: 100 + 1920 - 340 - 12, y: 50 + 1040 - 100 - 12, width: 340, height: 100 },
+      { x: 100 + 1920 - 300 - 12, y: 50 + 1040 - 100 - 12 - 80 - 12, width: 300, height: 80 },
+    ]);
+  });
+
+  it("ウィンドウがなければ空", () => {
+    expect(stackBounds(workArea, [], 12)).toEqual([]);
   });
 });

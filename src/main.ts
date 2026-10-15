@@ -13,6 +13,7 @@ import {
   Tray,
 } from "electron";
 import * as path from "path";
+import { type AlertDialogs, createAlertDialogs } from "@/main/alertDialogs";
 import { type AlertScheduler, createAlertScheduler } from "@/main/alertScheduler";
 import { buildAppInfo, buildAutoStartInfo } from "@/main/appInfo";
 import { DEFAULT_SETTINGS_TAB, settingsArg } from "@/main/cli";
@@ -24,7 +25,7 @@ import { resolveExePath, resolveLicensesPath } from "@/main/paths";
 import { anchoredBounds, contentSize, defaultPosition, pickDisplay, type Rect, type Size } from "@/main/placement";
 import { diffSettings, type SettingsChanges } from "@/main/settingsChanges";
 import { createSettingsStore, type SettingsStore } from "@/main/store";
-import { type AlertDef, alertText, allAlerts } from "@/shared/alerts";
+import { type AlertDef, alertText, allAlerts, isDialogAlert, safeColor } from "@/shared/alerts";
 import { type ClockSettings, type DeepPartial } from "@/shared/settings";
 import { type AppInfo, type AutoStartInfo, type DisplayInfo, type NtpStatus } from "@/shared/types";
 
@@ -37,6 +38,7 @@ const PRELOAD: string = path.join(__dirname, "preload.js");
 let store: SettingsStore;
 let ntp: NtpSync;
 let notifier: Notifier;
+let dialogs: AlertDialogs;
 let clockWin: BrowserWindow | null = null;
 let settingsWin: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -247,7 +249,8 @@ const applySettings = (prev: ClockSettings, next: ClockSettings): void => {
  */
 const showAlert = (a: AlertDef): void => {
   const { title, body } = alertText(a, PRODUCT_NAME);
-  notifier.show(title, body);
+  if (isDialogAlert(a)) dialogs.show({ title, body, color: safeColor(a.color) });
+  else notifier.show(title, body);
 };
 
 /**
@@ -305,6 +308,7 @@ const registerIpc = (): void => {
 
   ipcMain.on("clock:size", (_e: IpcMainEvent, w: number, h: number) => onClockSize(w, h));
   ipcMain.on("clock:reset-position", () => moveToDefault());
+  ipcMain.on("alert-dialog:size", (e: IpcMainEvent, w: number, h: number) => dialogs.resize(e.sender, w, h));
 
   ipcMain.handle("ntp:status", () => ntp.status);
   ipcMain.handle("ntp:sync", () => ntp.syncNow());
@@ -354,6 +358,12 @@ const boot = (): void => {
     iconPath: ICON_PATH,
   });
   notifier.registerAppId();
+  dialogs = createAlertDialogs({
+    productName: PRODUCT_NAME,
+    htmlPath: path.join(STATIC_DIR, "alert.html"),
+    preloadPath: PRELOAD,
+    workArea: targetWorkArea,
+  });
   const scheduler: AlertScheduler = createAlertScheduler({
     alerts: () => allAlerts(store.value.alerts),
     now: () => new Date(Date.now() + ntp.status.offsetMs),
