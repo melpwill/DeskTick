@@ -4,16 +4,19 @@ import {
   type AlertsSettings,
   alertText,
   allAlerts,
+  DEFAULT_ALERT_COLOR,
   DEFAULT_ALERTS,
   describeDays,
   describeSchedule,
   FIXED_ALERT_IDS,
   formatDuration,
+  isDialogAlert,
   isDue,
   localDate,
   newCustomAlert,
   normalizeAlerts,
   parseHHMM,
+  safeColor,
 } from "@/shared/alerts";
 
 // 2026-10-12は月曜日、2026-10-10は土曜日
@@ -46,6 +49,19 @@ describe("defaults", () => {
       const due = fixed.filter((a) => isDue(a, MON(Math.floor(m / 60), m % 60))).map((a) => a.id);
       expect(due.length, `${m} ${due.join(",")}`).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("isDialogAlert / safeColor", () => {
+  it("既定ではすべてトーストで通知する", () => {
+    expect(allAlerts(DEFAULT_ALERTS).some(isDialogAlert)).toBe(false);
+    expect(isDialogAlert(alert({}, { mode: "dialog" }))).toBe(true);
+  });
+
+  it("#rrggbb形式以外の色は既定の色にする", () => {
+    expect(safeColor("#A1b2C3")).toBe("#A1b2C3");
+    expect(safeColor("red")).toBe(DEFAULT_ALERT_COLOR);
+    expect(safeColor("#fff")).toBe(DEFAULT_ALERT_COLOR);
   });
 });
 

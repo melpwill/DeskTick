@@ -9,10 +9,14 @@ export interface AlertSchedule {
   once: string;
 }
 
+export type AlertMode = "toast" | "dialog";
+
 export interface AlertDef {
   id: string;
   name: string;
   enabled: boolean;
+  mode: AlertMode;
+  color: string;
   title: string;
   messages: string[];
   emojis: string[];
@@ -23,6 +27,9 @@ type FixedAlertIds = readonly ["teiji", "stand", "water", "breakfast", "lunch", 
 export const FIXED_ALERT_IDS: FixedAlertIds = ["teiji", "stand", "water", "breakfast", "lunch", "dinner"] as const;
 export type FixedAlertId = FixedAlertIds[number];
 export type AlertsSettings = Record<FixedAlertId, AlertDef> & { custom: AlertDef[] };
+
+export const DEFAULT_ALERT_COLOR: string = "#2f7de1";
+const MEAL_COLOR: string = "#e0912f";
 
 const WEEKDAYS: readonly number[] = [1, 2, 3, 4, 5];
 const EVERY_DAY: readonly number[] = [0, 1, 2, 3, 4, 5, 6];
@@ -53,6 +60,8 @@ const meal = (id: FixedAlertId, name: string, time: string, enabled: boolean, em
   id,
   name,
   enabled,
+  mode: "toast",
+  color: MEAL_COLOR,
   title: `${name}の時間です {emoji}`,
   messages: ["手を止めて、しっかり食べましょう。", "休憩も仕事のうち。ゆっくり味わって。"],
   emojis,
@@ -64,6 +73,8 @@ export const DEFAULT_ALERTS: AlertsSettings = {
     id: "teiji",
     name: "定時",
     enabled: true,
+    mode: "toast",
+    color: "#7a5cd6",
     title: "定時になりました {emoji}",
     messages: [
       "定時です。お疲れ様！",
@@ -78,6 +89,8 @@ export const DEFAULT_ALERTS: AlertsSettings = {
     id: "stand",
     name: "起立",
     enabled: true,
+    mode: "toast",
+    color: "#2e9e5b",
     title: "立ち上がりましょう {emoji}",
     messages: [
       "座りっぱなしは30分まで。少し立って体を動かしましょう。",
@@ -91,6 +104,8 @@ export const DEFAULT_ALERTS: AlertsSettings = {
     id: "water",
     name: "水分補給",
     enabled: true,
+    mode: "toast",
+    color: "#1f9bd1",
     title: "水分補給の時間です {emoji}",
     messages: ["コップ1杯 (約200ml) の水を飲みましょう。", "のどが渇く前に、ひと口どうぞ。"],
     emojis: ["💧", "🥤", "🍵"],
@@ -111,6 +126,8 @@ export const newCustomAlert = (id: string): AlertDef => ({
   id,
   name: "カスタム",
   enabled: true,
+  mode: "toast",
+  color: DEFAULT_ALERT_COLOR,
   title: "お知らせ {emoji}",
   messages: ["時間になりました。"],
   emojis: ["🔔"],
@@ -264,6 +281,20 @@ export const alertText = (a: AlertDef, fallbackTitle: string): { title: string; 
 
   return { title: fill(a.title) || a.name || fallbackTitle, body: fill(sample(nonBlankStrings(a.messages)) ?? "") };
 };
+
+/**
+ * @description - ダイアログで通知するアラートか
+ * @param {AlertDef} a - アラート定義
+ * @return {boolean} - ダイアログで通知するならtrue
+ */
+export const isDialogAlert = (a: AlertDef): boolean => a.mode === "dialog";
+
+/**
+ * @description - "#rrggbb"形式の色ならそのまま、そうでなければ既定の色を返す
+ * @param {string} color - 色文字列
+ * @return {string} - "#rrggbb"形式の色
+ */
+export const safeColor = (color: string): string => (/^#[0-9a-f]{6}$/i.test(color) ? color : DEFAULT_ALERT_COLOR);
 
 /**
  * @description - 分数を"1時間30分"のような表記にする
