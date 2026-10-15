@@ -81,3 +81,16 @@ export const contentSize = (width: number, height: number): Size => ({
   width: Math.max(1, Math.ceil(width)),
   height: Math.max(1, Math.ceil(height)),
 });
+
+/**
+ * @description - 作業領域の右下から上へ、ウィンドウを積み重ねた矩形を求める
+ * @param {Rect} workArea - ディスプレイの作業領域
+ * @param {readonly Size[]} sizes - 下から順のウィンドウの大きさ
+ * @param {number} gap - 余白と間隔
+ * @return {Rect[]} - sizesと同じ順の矩形
+ */
+export const stackBounds = (workArea: Rect, sizes: readonly Size[], gap: number): Rect[] =>
+  sizes.reduce<Rect[]>((acc: Rect[], size: Size): Rect[] => {
+    const bottom: number = acc.length ? acc[acc.length - 1].y : workArea.y + workArea.height;
+    return [...acc, { x: workArea.x + workArea.width - size.width - gap, y: bottom - size.height - gap, ...size }];
+  }, []);
