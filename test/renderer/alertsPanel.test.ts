@@ -106,10 +106,10 @@ describe("list", () => {
     expect(heading()).toBe("起立");
     expect(editorEl.querySelector("p.note")!.textContent).toContain("Diaz et al.");
 
-    // 食事には補足説明がなく、文言欄の注記だけが残る
+    // 食事には補足説明がなく、文言欄と通知方法欄の注記だけが残る
     item("朝食").click();
     expect(heading()).toBe("朝食");
-    expect(editorEl.querySelectorAll("p.note").length).toBe(1);
+    expect(editorEl.querySelectorAll("p.note").length).toBe(2);
     expect(button("このアラートを削除")).toBeUndefined();
   });
 
@@ -316,6 +316,40 @@ describe("text fields", () => {
     expect(inputs(row("タイトル"))[0].value).toBe("定時になりました {emoji}");
     expect(row("メッセージ").querySelector("textarea")!.value).toBe(defaultSettings().alerts.teiji.messages.join("\n"));
     expect(inputs(row("絵文字"))[0].value).toBe("🌇 🛀 ✨ 🍵 😌");
+  });
+});
+
+describe("mode fields", () => {
+  const select = () => row("表示").querySelector("select")!;
+  const color = () => inputs(row("色"))[0];
+
+  it("トーストなら色の入力を無効にして表示する", () => {
+    panel.update(defaultSettings());
+    expect(select().value).toBe("toast");
+    expect(color().value).toBe("#7a5cd6");
+    expect(color().disabled).toBe(true);
+  });
+
+  it("ダイアログに切り替えて色を保存し、トーストに戻すと色を無効にする", () => {
+    panel.update(defaultSettings());
+    input(select(), "dialog", "change");
+    expect((lastAlerts().teiji as AlertDef).mode).toBe("dialog");
+    expect(color().disabled).toBe(false);
+
+    input(color(), "#ff0000");
+    expect((lastAlerts().teiji as AlertDef).color).toBe("#ff0000");
+
+    input(select(), "toast", "change");
+    expect((lastAlerts().teiji as AlertDef).mode).toBe("toast");
+    expect(color().disabled).toBe(true);
+  });
+
+  it("保存済みのダイアログ設定を表示し、不正な色は既定の色にする", () => {
+    panel.update(withCustom({ mode: "dialog", color: "red" }));
+    item("カスタム").click();
+    expect(select().value).toBe("dialog");
+    expect(color().disabled).toBe(false);
+    expect(color().value).toBe("#2f7de1");
   });
 });
 

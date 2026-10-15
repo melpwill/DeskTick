@@ -2,7 +2,7 @@ import { type AlertDraft, createDraft } from "@/renderer/alertDraft";
 import { displayName, isFixed, noteFor, parseEmojis, parseMessages, validateAlert } from "@/renderer/alertLogic";
 import { scheduleRows } from "@/renderer/alertScheduleRows";
 import { type Child, h, present, row, targetChecked, targetValue } from "@/renderer/dom";
-import { type AlertDef } from "@/shared/alerts";
+import { type AlertDef, type AlertMode, safeColor } from "@/shared/alerts";
 
 export interface AlertEditorHandlers {
   /**
@@ -106,6 +106,49 @@ const textRows = (draft: AlertDraft): Child[] => {
   ];
 };
 
+const MODE_CHOICES: readonly (readonly [mode: AlertMode, label: string])[] = [
+  ["toast", "トースト (Windowsの通知)"],
+  ["dialog", "ダイアログ (OKを押すまで表示)"],
+];
+
+/**
+ * @description - 「通知方法」欄を作る
+ * @param {AlertDraft} draft - 下書き
+ * @return {Child[]} - 行
+ */
+const modeRows = (draft: AlertDraft): Child[] => {
+  const a: AlertDef = draft.current();
+  const color: HTMLInputElement = h("input", {
+    type: "color",
+    value: safeColor(a.color),
+    disabled: a.mode !== "dialog",
+    oninput: (e: Event) => draft.change("color", targetValue(e)),
+  });
+  return [
+    row(
+      "表示",
+      h(
+        "select",
+        {
+          onchange: (e: Event) => {
+            color.disabled = targetValue(e) !== "dialog";
+            draft.change("mode", targetValue(e));
+          },
+        },
+        ...MODE_CHOICES.map(([mode, label]) =>
+          h("option", { value: mode, textContent: label, selected: mode === a.mode }),
+        ),
+      ),
+    ),
+    row("色", color),
+    h(
+      "p",
+      { class: "note" },
+      "ダイアログは画面の右下に、OKを押すまで表示されます。色はダイアログの枠とボタンに使われます。",
+    ),
+  ];
+};
+
 /**
  * @description - 選択中のアラートの編集画面を描画する
  * @param {HTMLElement} root - 描画先
@@ -142,6 +185,8 @@ export const renderAlertEditor = (root: HTMLElement, src: AlertDef, handlers: Al
       msg,
       h("h3", {}, "文言"),
       ...textRows(draft),
+      h("h3", {}, "通知方法"),
+      ...modeRows(draft),
       h(
         "div",
         { class: "editor-foot" },
