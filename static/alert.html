@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>DeskTick</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --accent: #2f7de1;
+      }
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+        overflow: hidden;
+        user-select: none;
+        cursor: default;
+      }
+      #card {
+        box-sizing: border-box;
+        width: 340px;
+        padding: 14px 16px 12px 20px;
+        border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+        border-left: 6px solid var(--accent);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--accent) 10%, Canvas);
+        color: CanvasText;
+        font:
+          13px "Yu Gothic UI",
+          "Segoe UI",
+          sans-serif;
+        -webkit-app-region: drag;
+      }
+      #app {
+        font-size: 11px;
+        color: color-mix(in srgb, CanvasText 60%, transparent);
+      }
+      #title {
+        margin: 4px 0 6px;
+        font-size: 16px;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
+      #body {
+        margin: 0;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      #body:empty {
+        display: none;
+      }
+      .foot {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 10px;
+      }
+      #ok {
+        min-width: 72px;
+        padding: 5px 16px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+      #ok:hover {
+        filter: brightness(1.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="card">
+      <div id="app"></div>
+      <div id="title"></div>
+      <p id="body"></p>
+      <div class="foot"><button id="ok" type="button">OK</button></div>
+    </div>
+    <script src="../dist/renderer/alertDialog.js"></script>
+  </body>
+</html>

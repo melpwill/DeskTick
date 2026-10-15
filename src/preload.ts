@@ -20,6 +20,7 @@ export interface Api {
   onShowTab: (cb: (tab: string) => void) => void;
   reportSize: (w: number, h: number) => void;
   moveToDefault: () => void;
+  reportAlertDialogSize: (w: number, h: number) => void;
   getNtpStatus: () => Promise<NtpStatus>;
   syncNtp: () => Promise<NtpStatus>;
   onNtpStatus: (cb: (s: NtpStatus) => void) => void;
@@ -75,6 +76,13 @@ const api: Api = {
    * @return {void} - なし
    */
   moveToDefault: (): void => ipcRenderer.send("clock:reset-position"),
+  /**
+   * @description - 通知ダイアログの内容サイズを報告する
+   * @param {number} w - 幅
+   * @param {number} h - 高さ
+   * @return {void} - なし
+   */
+  reportAlertDialogSize: (w: number, h: number): void => ipcRenderer.send("alert-dialog:size", w, h),
 
   /**
    * @description - NTPの同期状態を取得する

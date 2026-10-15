@@ -15,7 +15,7 @@ const mainProcess: Readonly<BuildOptions> = {
 
 const renderer: Readonly<BuildOptions> = {
   ...common,
-  entryPoints: ["src/renderer/clock.ts", "src/renderer/settings.ts"],
+  entryPoints: ["src/renderer/clock.ts", "src/renderer/settings.ts", "src/renderer/alertDialog.ts"],
   outdir: "dist/renderer",
   platform: "browser",
   format: "iife",

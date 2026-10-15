@@ -63,6 +63,7 @@ export const mockApi = (): MockApi => {
     onShowTab: vi.fn((f: (t: string) => void) => void (cb.tab = f)),
     reportSize: vi.fn(),
     moveToDefault: vi.fn(),
+    reportAlertDialogSize: vi.fn(),
     getNtpStatus: vi.fn(async () => ntpStatus()),
     syncNtp: vi.fn(async () => ntpStatus()),
     onNtpStatus: vi.fn((f: (s: NtpStatus) => void) => void (cb.ntp = f)),
