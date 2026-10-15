@@ -39,6 +39,14 @@ describe("defaults", () => {
       false,
     ]);
   });
+
+  it("初期値のアラートは同じ分に重ならない", () => {
+    const fixed = FIXED_ALERT_IDS.map((id) => ({ ...DEFAULT_ALERTS[id], enabled: true }));
+    for (let m = 0; m < 24 * 60; m++) {
+      const due = fixed.filter((a) => isDue(a, MON(Math.floor(m / 60), m % 60))).map((a) => a.id);
+      expect(due.length, `${m} ${due.join(",")}`).toBeLessThanOrEqual(1);
+    }
+  });
 });
 
 describe("normalizeAlerts", () => {
@@ -93,7 +101,10 @@ describe("isDue", () => {
   });
 
   it("間隔は時間帯の開始から数え、開始時刻は含めず終了時刻は含める", () => {
-    const stand = DEFAULT_ALERTS.stand;
+    const stand = alert({
+      interval: { enabled: true, minutes: 30, from: "09:00", to: "18:00" },
+      times: { enabled: false, list: [] },
+    });
     expect(isDue(stand, MON(9, 0))).toBe(false);
     expect(isDue(stand, MON(9, 30))).toBe(true);
     expect(isDue(stand, MON(9, 45))).toBe(false);
@@ -168,7 +179,7 @@ describe("formatDuration / describeDays / describeSchedule", () => {
   });
 
   it("スケジュールを要約する", () => {
-    expect(describeSchedule(DEFAULT_ALERTS.stand)).toBe("30分ごと (09:00〜18:00) / 平日");
+    expect(describeSchedule(DEFAULT_ALERTS.stand)).toBe("30分ごと (09:45〜17:00) / 平日");
     expect(describeSchedule(DEFAULT_ALERTS.lunch)).toBe("12:00 / 毎日");
     const both = alert({
       interval: { enabled: true, minutes: 90, from: "09:00", to: "18:00" },

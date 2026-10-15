@@ -85,7 +85,7 @@ export const DEFAULT_ALERTS: AlertsSettings = {
       "立ち上がって肩と腰を伸ばしましょう。",
     ],
     emojis: ["🧍", "🚶", "🤸"],
-    schedule: schedule({ interval: { enabled: true, minutes: 30, from: "09:00", to: "18:00" } }),
+    schedule: schedule({ interval: { enabled: true, minutes: 30, from: "09:45", to: "17:00" } }),
   },
   water: {
     id: "water",
@@ -94,7 +94,7 @@ export const DEFAULT_ALERTS: AlertsSettings = {
     title: "水分補給の時間です {emoji}",
     messages: ["コップ1杯 (約200ml) の水を飲みましょう。", "のどが渇く前に、ひと口どうぞ。"],
     emojis: ["💧", "🥤", "🍵"],
-    schedule: schedule({ interval: { enabled: true, minutes: 60, from: "09:00", to: "18:00" } }),
+    schedule: schedule({ interval: { enabled: true, minutes: 60, from: "09:30", to: "18:00" } }),
   },
   breakfast: meal("breakfast", "朝食", "07:30", false, ["🍞", "🍙", "☕"]),
   lunch: meal("lunch", "昼食", "12:00", true, ["🍱", "🍜", "🍛"]),

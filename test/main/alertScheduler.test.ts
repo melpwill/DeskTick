@@ -70,14 +70,14 @@ describe("AlertScheduler.check", () => {
   });
 
   it("一定間隔のアラートは次の該当する分に再び通知する", () => {
-    now = at("09:00");
-    alerts = [DEFAULT_ALERTS.stand]; // every 30 min from 09:00 on weekdays
-    const s = make();
-    now = at("09:30");
-    s.check();
-    now = at("09:45");
-    s.check();
     now = at("10:00");
+    alerts = [DEFAULT_ALERTS.stand]; // every 30 min from 09:45 on weekdays
+    const s = make();
+    now = at("10:15");
+    s.check();
+    now = at("10:30");
+    s.check();
+    now = at("10:45");
     s.check();
     expect(fire).toHaveBeenCalledTimes(2);
     expect(fire).toHaveBeenNthCalledWith(1, DEFAULT_ALERTS.stand);
