@@ -43,7 +43,7 @@ DeskTick.exeとconfig.jsonを同じディレクトリに置いて、DeskTick.exe
 | 時刻同期    | NTPのオン/オフ、サーバ、同期間隔、同期状態                             |
 | 通知        | 各アラートのオン/オフ、スケジュール、文言、テスト通知                  |
 | 起動        | Windows起動時に自動で開始                                              |
-| 情報/ヘルプ | バージョン、設定ファイルの場所、使い方                                 |
+| 情報/ヘルプ | バージョン、設定ファイルの場所、使い方、ライセンス                     |
 
 設定は変更するとすぐ反映され、config.jsonに保存されます。
 config.jsonを直接編集した場合も、保存すると自動で読み込み直します（JSONが不正な間は無視します）。
@@ -197,19 +197,16 @@ scripts/build.mts         esbuild によるバンドル
 scripts/package.mts       配布用ディレクトリの作成
 ```
 
-### CI/リリース（GitHub Actions）
+## ライセンス
 
-.github/workflows/ci.ymlで次のジョブを実行します。
+[MIT License](LICENSE)
 
-| タイミング           | ジョブ                                                                  |
-| -------------------- | ----------------------------------------------------------------------- |
-| PR、ブランチへのpush | lint・format・typecheck → test（カバレッジとJUnitをArtifactとして保存） |
-| タグvX.Y.Zのpush     | 上記に加えて、Windowsランナーでのexeのビルド → GitHub Releaseの作成     |
+配布するexeには、次のライブラリが含まれます。
 
-リリースの手順：
+| ライブラリ                                       | ライセンス                               |
+| ------------------------------------------------ | ---------------------------------------- |
+| [Electron](https://github.com/electron/electron) | MIT License                              |
+| Chromium / Node.js（Electronに同梱）             | 各ライセンス（情報タブのボタンから表示） |
+| [lodash-es](https://github.com/lodash/lodash)    | MIT License                              |
 
-1. package.jsonのversionを上げる（例：1.1.0）
-2. 同じバージョンのタグ（例：v1.1.0）を作成してpushする
-
-タグとversionが一致しない場合、ビルドジョブは失敗します。  
-ReleaseにはDeskTick.exeとconfig.jsonが添付されます。
+開発時にだけ使うライブラリ（electron-builder・esbuild・ESLint・Vitestなど）は、exeに含まれません。
