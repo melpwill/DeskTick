@@ -5,6 +5,7 @@ import {
   type IpcMainEvent,
   Menu,
   type MenuItem,
+  type MenuItemConstructorOptions,
   nativeImage,
   type NativeImage,
   powerMonitor,
@@ -14,6 +15,7 @@ import {
 } from "electron";
 import * as path from "path";
 import { type AlertDialogs, createAlertDialogs } from "@/main/alertDialogs";
+import { type AlertPause, createAlertPause, PAUSE_CHOICES, type PauseChoice, pauseUntilText } from "@/main/alertPause";
 import { type AlertScheduler, createAlertScheduler } from "@/main/alertScheduler";
 import { buildAppInfo, buildAutoStartInfo } from "@/main/appInfo";
 import { DEFAULT_SETTINGS_TAB, settingsArg } from "@/main/cli";
@@ -39,6 +41,7 @@ let store: SettingsStore;
 let ntp: NtpSync;
 let notifier: Notifier;
 let dialogs: AlertDialogs;
+let alertPause: AlertPause;
 let clockWin: BrowserWindow | null = null;
 let settingsWin: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -193,6 +196,29 @@ const openSettingsFromArgs = (argv: readonly string[]): void => {
 };
 
 /**
+ * @description - 通知の一時停止・再開のメニュー項目を作る
+ * @return {MenuItemConstructorOptions} - メニュー項目
+ */
+const pauseMenuItem = (): MenuItemConstructorOptions => {
+  if (alertPause.paused) {
+    return { label: `通知を再開（${pauseUntilText(alertPause.until)}停止中）`, click: alertPause.resume };
+  }
+  return {
+    label: "通知を一時停止",
+    submenu: PAUSE_CHOICES.map((c: PauseChoice) => ({ label: c.label, click: () => alertPause.pause(c.minutes) })),
+  };
+};
+
+/**
+ * @description - 通知の停止状態に合わせてタスクトレイのツールチップを更新する
+ * @return {void} - なし
+ */
+const updateTrayTooltip = (): void => {
+  const suffix: string = alertPause.paused ? `（通知を停止中：${pauseUntilText(alertPause.until)}）` : "";
+  tray?.setToolTip(`${PRODUCT_NAME}${suffix}`);
+};
+
+/**
  * @description - 右クリックメニューを作る
  * @return {Menu} - メニュー
  */
@@ -209,6 +235,8 @@ const buildMenu = (): Menu => {
       click: (mi: MenuItem) => updateSettings({ alwaysOnTop: mi.checked }),
     },
     { type: "separator" },
+    pauseMenuItem(),
+    { type: "separator" },
     { label: "バージョン情報 / ヘルプ", click: () => openSettings("about") },
     { type: "separator" },
     { label: "終了", click: () => app.quit() },
@@ -223,7 +251,7 @@ const createTray = (): void => {
   const icon: NativeImage = nativeImage.createFromPath(ICON_PATH).resize({ width: 32, height: 32, quality: "best" });
   const t: Tray = new Tray(icon);
   tray = t;
-  t.setToolTip(PRODUCT_NAME);
+  updateTrayTooltip();
   t.on("click", toggleClock);
   t.on("right-click", () => tray?.popUpContextMenu(buildMenu()));
 };
@@ -364,10 +392,13 @@ const boot = (): void => {
     preloadPath: PRELOAD,
     workArea: targetWorkArea,
   });
+  alertPause = createAlertPause({ now: () => Date.now(), onChange: updateTrayTooltip });
   const scheduler: AlertScheduler = createAlertScheduler({
     alerts: () => allAlerts(store.value.alerts),
     now: () => new Date(Date.now() + ntp.status.offsetMs),
-    fire: showAlert,
+    fire: (a: AlertDef) => {
+      if (!alertPause.paused) showAlert(a);
+    },
   });
   registerIpc();
   createClockWindow();
