@@ -29,6 +29,7 @@ import { createNotifier, type Notifier } from "@/main/notifier";
 import { createNtpSync, type NtpSync } from "@/main/ntp";
 import { resolveExePath, resolveLicensesPath } from "@/main/paths";
 import { anchoredBounds, contentSize, defaultPosition, pickDisplay, type Rect, type Size } from "@/main/placement";
+import { createReleaseNotesSource, type ReleaseNotesSource } from "@/main/releaseNotes";
 import { diffSettings, type SettingsChanges } from "@/main/settingsChanges";
 import { createSettingsStore, type SettingsStore } from "@/main/store";
 import { canWriteBeside, cleanupUpdateFiles, stageExe, swapExe } from "@/main/updateFiles";
@@ -50,6 +51,7 @@ let notifier: Notifier;
 let dialogs: AlertDialogs;
 let alertPause: AlertPause;
 let updater: Updater;
+let releaseNotes: ReleaseNotesSource;
 let clockWin: BrowserWindow | null = null;
 let settingsWin: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -253,7 +255,7 @@ const promptUpdate = async (s: UpdateStatus): Promise<void> => {
       message: `DeskTick v${s.latestVersion} があります（現在 v${s.currentVersion}）`,
       detail: [
         s.error ? `前回の更新に失敗しました: ${s.error}` : "",
-        "更新すると、exeを新しいバージョンに差し替えます。設定 (config.json) はそのまま引き継ぎます。",
+        "更新すると、exeを新しいバージョンに差し替えます。設定（config.json）はそのまま引き継ぎます。",
         s.installBlocked ?? "",
       ]
         .filter(Boolean)
@@ -502,6 +504,7 @@ const registerIpc = (): void => {
     const v: string | null = updater.status.latestVersion;
     if (v) updateSettings({ update: { skipVersion: v } });
   });
+  ipcMain.handle("release-notes:get", () => releaseNotes.get());
 };
 
 /**
@@ -549,6 +552,7 @@ const boot = (): void => {
   });
   alertPause = createAlertPause({ now: () => Date.now(), onChange: updateTrayTooltip });
   updater = createAppUpdater();
+  releaseNotes = createReleaseNotesSource({ get: httpGet, now: () => Date.now() });
   const scheduler: AlertScheduler = createAlertScheduler({
     alerts: () => allAlerts(store.value.alerts),
     now: () => new Date(Date.now() + ntp.status.offsetMs),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAllowedUrl, LATEST_RELEASE_API, parseRelease, RELEASES_PAGE } from "@/main/githubRelease";
+import { isAllowedUrl, LATEST_RELEASE_API, parseRelease, RELEASES_FEED, RELEASES_PAGE } from "@/main/githubRelease";
 
 const DL = `${RELEASES_PAGE}/download/v1.2.0`;
 
@@ -18,6 +18,7 @@ const release = (patch: Record<string, unknown> = {}): Record<string, unknown> =
 describe("isAllowedUrl", () => {
   it("GitHubのAPI・リリース・配布用ホストのHTTPSだけを許可する", () => {
     expect(isAllowedUrl(LATEST_RELEASE_API)).toBe(true);
+    expect(isAllowedUrl(RELEASES_FEED)).toBe(true);
     expect(isAllowedUrl(`${DL}/DeskTick.exe`)).toBe(true);
     expect(isAllowedUrl("https://objects.githubusercontent.com/x")).toBe(true);
     expect(isAllowedUrl("https://release-assets.githubusercontent.com/x")).toBe(true);

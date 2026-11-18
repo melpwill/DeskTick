@@ -4,6 +4,8 @@ import { parseVersion, type Version } from "@/shared/version";
 export const REPO: string = "melpwill/DeskTick";
 export const LATEST_RELEASE_API: string = `https://api.github.com/repos/${REPO}/releases/latest`;
 export const RELEASES_PAGE: string = `https://github.com/${REPO}/releases`;
+/** リリースのAtomフィード（REST APIではないので、APIの回数制限を受けない） */
+export const RELEASES_FEED: string = `${RELEASES_PAGE}.atom`;
 const DOWNLOAD_PREFIX: string = `${RELEASES_PAGE}/download/`;
 
 /** 更新の確認・ダウンロードで接続してよいホスト（リダイレクト先を含む） */

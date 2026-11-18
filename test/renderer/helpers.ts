@@ -57,6 +57,25 @@ export const updateStatus = (patch: Partial<UpdateStatus> = {}): UpdateStatus =>
   ...patch,
 });
 
+/**
+ * @description - GitHubのリリースのAtomフィードのentryを作る
+ * @param {string} tag - タグ名
+ * @param {string} html - 本文のHTML
+ * @param {string} updated - 更新日時（省略するとupdated要素を付けない）
+ * @return {string} - entry要素
+ */
+export const feedEntry = (tag: string, html: string = "", updated?: string): string =>
+  `<entry><id>tag:github.com,2008:Repository/1/${tag}</id>${updated ? `<updated>${updated}</updated>` : ""}` +
+  `<title>DeskTick ${tag}</title><content type="html">${html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</content></entry>`;
+
+/**
+ * @description - GitHubのリリースのAtomフィードを作る
+ * @param {string[]} entries - entry要素
+ * @return {string} - フィード
+ */
+export const feed = (...entries: string[]): string =>
+  `<?xml version="1.0" encoding="UTF-8"?><feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">${entries.join("")}</feed>`;
+
 export interface MockApi {
   api: { [K in keyof Api]: Mock };
   cb: {
@@ -111,6 +130,7 @@ export const mockApi = (): MockApi => {
     openReleasePage: vi.fn(),
     skipUpdate: vi.fn(),
     onUpdateStatus: vi.fn((f: (s: UpdateStatus) => void) => void (cb.update = f)),
+    getReleaseNotes: vi.fn(async () => ({ feed: "<feed></feed>", error: null })),
   };
   return { api, cb };
 };

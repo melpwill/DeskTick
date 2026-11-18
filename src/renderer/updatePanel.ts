@@ -1,6 +1,10 @@
 import type { Api } from "@/preload";
 import { byId } from "@/renderer/dom";
+import { bindReleaseNotes, notesBetween, type ReleaseNote } from "@/renderer/releaseNotes";
 import { type UpdateStatus } from "@/shared/types";
+
+/** 最後に表示した更新の状態（変更内容の範囲を決めるのに使う） */
+let shown: UpdateStatus | null = null;
 
 /**
  * @description - 確認した時刻を表示用にする
@@ -35,6 +39,20 @@ export const formatUpdateStatus = (s: UpdateStatus): string => {
 };
 
 /**
+ * @description - 見つかった新しいバージョンの変更内容の折りたたみを出し分ける（別のバージョンになったら閉じる）
+ * @param {UpdateStatus} s - 更新の状態
+ * @return {void} - なし
+ */
+const renderNotesToggle = (s: UpdateStatus): void => {
+  const details: HTMLDetailsElement = byId<HTMLDetailsElement>("updateNotes");
+  const found: boolean = (s.state === "available" || s.state === "ready") && s.latestVersion !== null;
+  details.hidden = !found;
+  if (!found || s.latestVersion === shown?.latestVersion) return;
+  details.open = false;
+  byId("updateNotesSummary").textContent = `v${s.latestVersion} の変更内容を表示`;
+};
+
+/**
  * @description - 更新の状態を画面に反映する
  * @param {UpdateStatus} s - 更新の状態
  * @return {void} - なし
@@ -50,6 +68,8 @@ export const renderUpdateStatus = (s: UpdateStatus): void => {
   const blocked: HTMLElement = byId("updateBlocked");
   blocked.hidden = s.installBlocked === null;
   blocked.textContent = s.installBlocked ?? "";
+  renderNotesToggle(s);
+  shown = s;
 };
 
 /**
@@ -67,6 +87,13 @@ export const initUpdatePanel = async (api: Api): Promise<void> => {
     byId("updateSkip").hidden = true;
   });
   byId("updateRelease").addEventListener("click", () => api.openReleasePage());
+  bindReleaseNotes(
+    byId<HTMLDetailsElement>("updateNotes"),
+    byId("updateNotesBody"),
+    api,
+    (notes: readonly ReleaseNote[]) =>
+      shown?.latestVersion ? notesBetween(notes, shown.currentVersion, shown.latestVersion) : [],
+  );
   api.onUpdateStatus(renderUpdateStatus);
   renderUpdateStatus(await api.getUpdateStatus());
 };

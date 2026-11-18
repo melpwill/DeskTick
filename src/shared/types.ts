@@ -45,3 +45,9 @@ export interface UpdateStatus {
   /** この環境でexeを差し替えられない理由（差し替えられるならnull） */
   installBlocked: string | null;
 }
+
+export interface ReleaseNotesResult {
+  /** リリースのAtomフィード（XML）。取得できなければ空文字 */
+  feed: string;
+  error: string | null;
+}

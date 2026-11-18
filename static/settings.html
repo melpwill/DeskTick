@@ -350,6 +350,44 @@
       summary {
         cursor: pointer;
       }
+      .release-notes {
+        max-height: 320px;
+        overflow-y: auto;
+        margin: 4px 0 8px;
+        padding: 0 8px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      .release-notes h4 {
+        margin: 8px 0 4px;
+      }
+      .release-body {
+        overflow-wrap: anywhere;
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+      .release-body h5 {
+        margin: 8px 0 4px;
+        font-size: 13px;
+      }
+      .release-body p,
+      .release-body pre,
+      .release-body table {
+        margin: 4px 0;
+      }
+      .release-body ul,
+      .release-body ol {
+        margin: 4px 0;
+        padding-left: 20px;
+      }
+      .release-body pre {
+        white-space: pre-wrap;
+      }
+      .release-body blockquote {
+        margin: 4px 0;
+        padding-left: 8px;
+        border-left: 3px solid var(--line);
+      }
       [hidden] {
         display: none !important;
       }
@@ -646,13 +684,15 @@
           </div>
         </div>
         <p class="note" id="updateBlocked" hidden></p>
+        <details id="updateNotes" hidden>
+          <summary id="updateNotesSummary"></summary>
+          <div class="release-notes" id="updateNotesBody"></div>
+        </details>
         <p class="note">
           GitHubのリリースを1日に1回確認します（起動して1分後に1回目）。<br />
           「自動で更新する」では、新しいバージョンをダウンロードしてexeを差し替え、次に起動したときから新しいバージョンになります。<br />
-          ダウンロードしたファイルは、開発者の署名 (Ed25519)
-          とハッシュを確かめてから使います。確かめられないときは更新しません。<br />
-          設定 (config.json)
-          はそのまま引き継ぎます。差し替える前のexeは、新しいバージョンが起動するまで「DeskTick.exe.old」として残します。<br />
+          ダウンロードしたファイルは、開発者の署名（Ed25519）とハッシュを確かめてから使います。確かめられないときは更新しません。<br />
+          設定（config.json）はそのまま引き継ぎます。差し替える前のexeは、新しいバージョンが起動するまで「DeskTick.exe.old」として残します。<br />
           「今すぐ確認」は、「自動では確認しない」にしていても使えます。
         </p>
       </section>
@@ -698,6 +738,13 @@
           </tr>
         </table>
         <button class="btn" id="openFolder">設定ファイルの場所を開く</button>
+
+        <h3>リリースノート</h3>
+        <details id="aboutNotes">
+          <summary>このバージョンまでのリリースノートを表示</summary>
+          <div class="release-notes" id="aboutNotesBody"></div>
+        </details>
+        <p class="note">GitHubのリリースページに書かれた内容を表示します（表示するときに取得します）。</p>
 
         <h3>使い方</h3>
         <table>
