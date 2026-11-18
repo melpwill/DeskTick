@@ -10,6 +10,7 @@ import { createPreview, type Preview } from "@/renderer/preview";
 import { bindFields, type Field, fillFields } from "@/renderer/settingsFields";
 import { initTabs } from "@/renderer/tabs";
 import { fillTokenTables } from "@/renderer/tokens";
+import { initUpdatePanel } from "@/renderer/updatePanel";
 import { type ClockSettings } from "@/shared/settings";
 import { type NtpStatus } from "@/shared/types";
 
@@ -96,6 +97,7 @@ const init = async (): Promise<void> => {
 
   void loadAbout(api);
   void initAutoStart(api);
+  void initUpdatePanel(api);
   void loadFonts(api);
 };
 

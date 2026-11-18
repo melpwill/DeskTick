@@ -15,7 +15,6 @@ permissions:
 
 jobs:
   check:
-    # 同一リポジトリのブランチからの PR は push 側で実行済みのため重複させない
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     strategy:
@@ -78,8 +77,36 @@ jobs:
           name: DeskTick-${{ github.ref_name }}
           path: release/DeskTick/
 
-  release:
+  sign:
     needs: build-windows
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: DeskTick-${{ github.ref_name }}
+          path: release/DeskTick
+      - name: Sign update manifest
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: node scripts/sign-release.mts release/DeskTick
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DeskTick-${{ github.ref_name }}-signed
+          path: |
+            release/DeskTick/DeskTick-update.json
+            release/DeskTick/DeskTick-update.json.sig
+
+  release:
+    needs: sign
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -88,6 +115,10 @@ jobs:
         with:
           name: DeskTick-${{ github.ref_name }}
           path: release/DeskTick
+      - uses: actions/download-artifact@v4
+        with:
+          name: DeskTick-${{ github.ref_name }}-signed
+          path: release/DeskTick
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -95,6 +126,8 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --title "DeskTick $GITHUB_REF_NAME" \
-            --notes "DeskTick $GITHUB_REF_NAME — DeskTick.exe と config.json を同じディレクトリに置いて起動してください。" \
+            --notes "DeskTick $GITHUB_REF_NAME — DeskTick.exe と config.json を同じディレクトリに置いて起動してください。DeskTick-update.json と .sig は、アプリの更新機能が使う署名ファイルです（手動で置く必要はありません）。" \
             release/DeskTick/DeskTick.exe \
-            release/DeskTick/config.json
+            release/DeskTick/config.json \
+            release/DeskTick/DeskTick-update.json \
+            release/DeskTick/DeskTick-update.json.sig

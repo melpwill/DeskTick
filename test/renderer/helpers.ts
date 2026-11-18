@@ -4,7 +4,7 @@ import { cloneDeep } from "lodash-es";
 import { type Mock, vi } from "vitest";
 import type { Api } from "@/preload";
 import { type ClockSettings, DEFAULT_SETTINGS } from "@/shared/settings";
-import type { NtpStatus } from "@/shared/types";
+import type { NtpStatus, UpdateStatus } from "@/shared/types";
 
 /**
  * @description - 静的HTMLファイルの<body>の中身を<script>タグを除いて読み込む
@@ -40,12 +40,30 @@ export const ntpStatus = (patch: Partial<NtpStatus> = {}): NtpStatus => ({
   ...patch,
 });
 
+/**
+ * @description - テスト用の更新の状態を作る
+ * @param {Partial<UpdateStatus>} patch - 既定値から変更する項目
+ * @return {UpdateStatus} - 更新の状態
+ */
+export const updateStatus = (patch: Partial<UpdateStatus> = {}): UpdateStatus => ({
+  state: "idle",
+  currentVersion: "1.2.3",
+  latestVersion: null,
+  releaseUrl: "https://github.com/melpwill/DeskTick/releases",
+  progress: null,
+  error: null,
+  lastChecked: null,
+  installBlocked: null,
+  ...patch,
+});
+
 export interface MockApi {
   api: { [K in keyof Api]: Mock };
   cb: {
     settings?: (s: ClockSettings) => void;
     ntp?: (s: NtpStatus) => void;
     tab?: (t: string) => void;
+    update?: (s: UpdateStatus) => void;
   };
 }
 
@@ -86,6 +104,13 @@ export const mockApi = (): MockApi => {
     })),
     openSettingsFolder: vi.fn(),
     openLicenses: vi.fn(),
+    getUpdateStatus: vi.fn(async () => updateStatus()),
+    checkUpdate: vi.fn(async () => updateStatus({ state: "latest" })),
+    installUpdate: vi.fn(async () => updateStatus({ state: "ready", latestVersion: "1.3.0" })),
+    restartToUpdate: vi.fn(),
+    openReleasePage: vi.fn(),
+    skipUpdate: vi.fn(),
+    onUpdateStatus: vi.fn((f: (s: UpdateStatus) => void) => void (cb.update = f)),
   };
   return { api, cb };
 };

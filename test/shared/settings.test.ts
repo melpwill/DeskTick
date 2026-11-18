@@ -27,6 +27,20 @@ describe("normalizeSettings", () => {
     expect(s.alerts.custom[0].name).toBe("カスタム");
     expect(s.font).toBe(DEFAULT_SETTINGS.font);
   });
+
+  it("更新の方法が不正なら既定値にし、正しければそのままにする", () => {
+    const bad = normalizeSettings({
+      ...DEFAULT_SETTINGS,
+      update: { ...DEFAULT_SETTINGS.update, mode: "always" as "auto" },
+    });
+    expect(bad.update).toEqual(DEFAULT_SETTINGS.update);
+    const ok = normalizeSettings({ ...DEFAULT_SETTINGS, update: { mode: "off", notify: false, skipVersion: "1.2.3" } });
+    expect(ok.update).toEqual({ mode: "off", notify: false, skipVersion: "1.2.3" });
+  });
+
+  it("configVersionは常に現在の版にする", () => {
+    expect(normalizeSettings({ ...DEFAULT_SETTINGS, configVersion: 9 }).configVersion).toBe(1);
+  });
 });
 
 describe("toRgba", () => {

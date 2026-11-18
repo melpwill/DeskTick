@@ -14,7 +14,24 @@ vi.mock("fs", async (importOriginal) => {
   return { ...actual, watch: vi.fn(), writeFileSync: vi.fn(actual.writeFileSync) };
 });
 
-import { CONFIG_NAME, createSettingsStore } from "@/main/store";
+vi.mock("@/shared/configVersion", async (importOriginal) => {
+  const actual = await importOriginal<typeof configVersion>();
+  return { ...actual, migrateConfig: vi.fn(actual.migrateConfig) };
+});
+
+import { BACKUP_SUFFIX, CONFIG_NAME, createSettingsStore } from "@/main/store";
+import * as configVersion from "@/shared/configVersion";
+
+/**
+ * @description - 版2へ"pad"を"padding"に移す変換があるものとして読み込むようにする
+ * @return {Promise<void>} - 完了
+ */
+const useV2Migration = async (): Promise<void> => {
+  const actual = await vi.importActual<typeof configVersion>("@/shared/configVersion");
+  vi.mocked(configVersion.migrateConfig).mockImplementation((raw: unknown) =>
+    actual.migrateConfig(raw, 2, { 1: (r) => ({ ...r, padding: r.pad }) }),
+  );
+};
 
 type WatchListener = (ev: string, name: string | Buffer | null) => void;
 
@@ -251,5 +268,60 @@ describe("watch", () => {
     vi.advanceTimersByTime(200);
     expect(onExternal).not.toHaveBeenCalled();
     expect(s.value).toEqual(DEFAULT_SETTINGS);
+  });
+});
+
+describe("configVersion", () => {
+  it("古い版のファイルは変換し、元の内容を.bakに残してから書き直す", async () => {
+    await useV2Migration();
+    const original = JSON.stringify({ pad: 7 });
+    fs.writeFileSync(file, original);
+    const s = createSettingsStore(vi.fn());
+    expect(s.value.padding).toBe(7);
+    expect(s.readOnly).toBe(false);
+    expect(fs.readFileSync(`${file}${BACKUP_SUFFIX}`, "utf8")).toBe(original);
+    expect(readJson()).toMatchObject({ padding: 7, configVersion: 1 });
+  });
+
+  it(".bakを書けなくてもログに出して読み込みを続ける", async () => {
+    await useV2Migration();
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    fs.writeFileSync(file, JSON.stringify({ pad: 3 }));
+    vi.mocked(fs.writeFileSync).mockImplementationOnce(() => {
+      throw new Error("denied");
+    });
+    const s = createSettingsStore(vi.fn());
+    expect(s.value.padding).toBe(3);
+    expect(err).toHaveBeenCalledWith("Failed to back up config:", expect.any(Error));
+    expect(readJson()).toMatchObject({ padding: 3 });
+  });
+
+  it("新しい版のファイルは読み込むが、上書きしない", () => {
+    vi.useFakeTimers();
+    const text = JSON.stringify({ configVersion: 99, padding: 3, future: true });
+    fs.writeFileSync(file, text);
+    const s = createSettingsStore(vi.fn());
+    expect(s.readOnly).toBe(true);
+    expect(s.value.padding).toBe(3);
+    s.update({ padding: 5 });
+    s.flush();
+    expect(s.value.padding).toBe(5);
+    expect(fs.readFileSync(file, "utf8")).toBe(text);
+  });
+
+  it("外部の編集で版が変わったら、上書きするかどうかも切り替える", () => {
+    vi.useFakeTimers();
+    const s = createSettingsStore(vi.fn());
+    fs.writeFileSync(file, JSON.stringify({ configVersion: 99 }));
+    watchListener()("change", CONFIG_NAME);
+    vi.advanceTimersByTime(200);
+    expect(s.readOnly).toBe(true);
+    fs.writeFileSync(file, JSON.stringify({ configVersion: 1, padding: 2 }));
+    watchListener()("change", CONFIG_NAME);
+    vi.advanceTimersByTime(200);
+    expect(s.readOnly).toBe(false);
+    s.update({ padding: 6 });
+    s.flush();
+    expect(readJson()).toMatchObject({ padding: 6 });
   });
 });

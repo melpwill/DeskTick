@@ -28,3 +28,20 @@ export interface AutoStartInfo {
   enabled: boolean;
   path: string;
 }
+
+export type UpdateState = "idle" | "checking" | "latest" | "available" | "downloading" | "ready" | "error";
+
+export interface UpdateStatus {
+  state: UpdateState;
+  currentVersion: string;
+  /** 見つかった新しいバージョン */
+  latestVersion: string | null;
+  /** リリースページのURL */
+  releaseUrl: string;
+  /** ダウンロードの進み具合（0〜1） */
+  progress: number | null;
+  error: string | null;
+  lastChecked: number | null;
+  /** この環境でexeを差し替えられない理由（差し替えられるならnull） */
+  installBlocked: string | null;
+}
