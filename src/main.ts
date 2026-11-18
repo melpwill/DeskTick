@@ -1,6 +1,8 @@
+import { type ChildProcess, spawn } from "child_process";
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   type IpcMainEvent,
   Menu,
@@ -21,15 +23,20 @@ import { buildAppInfo, buildAutoStartInfo } from "@/main/appInfo";
 import { DEFAULT_SETTINGS_TAB, settingsArg } from "@/main/cli";
 import { toDisplayInfos } from "@/main/displays";
 import { listFonts } from "@/main/fonts";
+import { isAllowedUrl } from "@/main/githubRelease";
+import { httpGet } from "@/main/http";
 import { createNotifier, type Notifier } from "@/main/notifier";
 import { createNtpSync, type NtpSync } from "@/main/ntp";
 import { resolveExePath, resolveLicensesPath } from "@/main/paths";
 import { anchoredBounds, contentSize, defaultPosition, pickDisplay, type Rect, type Size } from "@/main/placement";
 import { diffSettings, type SettingsChanges } from "@/main/settingsChanges";
 import { createSettingsStore, type SettingsStore } from "@/main/store";
+import { canWriteBeside, cleanupUpdateFiles, stageExe, swapExe } from "@/main/updateFiles";
+import { UPDATE_PUBLIC_KEYS } from "@/main/updateKeys";
+import { createUpdater, type Updater } from "@/main/updater";
 import { type AlertDef, alertText, allAlerts, isDialogAlert, safeColor } from "@/shared/alerts";
 import { type ClockSettings, type DeepPartial } from "@/shared/settings";
-import { type AppInfo, type AutoStartInfo, type DisplayInfo, type NtpStatus } from "@/shared/types";
+import { type AppInfo, type AutoStartInfo, type DisplayInfo, type NtpStatus, type UpdateStatus } from "@/shared/types";
 
 const PRODUCT_NAME: string = "DeskTick";
 const APP_USER_MODEL_ID: string = "jp.melpwill.desktick";
@@ -42,6 +49,7 @@ let ntp: NtpSync;
 let notifier: Notifier;
 let dialogs: AlertDialogs;
 let alertPause: AlertPause;
+let updater: Updater;
 let clockWin: BrowserWindow | null = null;
 let settingsWin: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -219,6 +227,119 @@ const updateTrayTooltip = (): void => {
 };
 
 /**
+ * @description - 更新の確認・適用の結果を、必要ならメッセージボックスで尋ねる
+ * @param {UpdateStatus} s - 処理後の状態
+ * @return {Promise<void>} - 完了
+ */
+const promptUpdate = async (s: UpdateStatus): Promise<void> => {
+  if (s.state === "ready") {
+    const { response } = await dialog.showMessageBox({
+      type: "info",
+      title: PRODUCT_NAME,
+      message: `DeskTick v${s.latestVersion} に更新しました`,
+      detail: "再起動すると新しいバージョンになります。",
+      buttons: ["今すぐ再起動", "あとで"],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (response === 0) restartForUpdate();
+    return;
+  }
+  if (s.state === "available") {
+    const actions: readonly string[] = s.installBlocked ? ["open", "close"] : ["install", "open", "close"];
+    const { response } = await dialog.showMessageBox({
+      type: "info",
+      title: PRODUCT_NAME,
+      message: `DeskTick v${s.latestVersion} があります（現在 v${s.currentVersion}）`,
+      detail: [
+        s.error ? `前回の更新に失敗しました: ${s.error}` : "",
+        "更新すると、exeを新しいバージョンに差し替えます。設定 (config.json) はそのまま引き継ぎます。",
+        s.installBlocked ?? "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      buttons: s.installBlocked ? ["リリースページを開く", "閉じる"] : ["更新する", "リリースページを開く", "閉じる"],
+      defaultId: 0,
+      cancelId: actions.length - 1,
+    });
+    if (actions[response] === "install") await promptUpdate(await updater.install());
+    if (actions[response] === "open") openReleasePage();
+    return;
+  }
+  if (s.state === "latest") {
+    void dialog.showMessageBox({
+      type: "info",
+      title: PRODUCT_NAME,
+      message: `最新のバージョン (v${s.currentVersion}) です`,
+    });
+  } else if (s.state === "error") {
+    void dialog.showMessageBox({
+      type: "warning",
+      title: PRODUCT_NAME,
+      message: "更新を確認できませんでした",
+      detail: s.error ?? "",
+    });
+  }
+};
+
+/**
+ * @description - 更新のメニュー項目を作る
+ * @return {MenuItemConstructorOptions} - メニュー項目
+ */
+const updateMenuItem = (): MenuItemConstructorOptions => {
+  const s: UpdateStatus = updater.status;
+  switch (s.state) {
+    case "checking":
+      return { label: "更新を確認中...", enabled: false };
+    case "downloading":
+      return { label: `更新をダウンロード中 (${Math.round((s.progress ?? 0) * 100)}%)`, enabled: false };
+    case "ready":
+      return { label: `再起動して v${s.latestVersion} に更新`, click: restartForUpdate };
+    case "available":
+      return { label: `v${s.latestVersion} に更新...`, click: () => void promptUpdate(s) };
+    default:
+      return { label: "更新を確認...", click: () => void updater.check().then(promptUpdate) };
+  }
+};
+
+/**
+ * @description - リリースページをブラウザで開く
+ * @return {void} - なし
+ */
+const openReleasePage = (): void => {
+  const url: string = updater.status.releaseUrl;
+  if (isAllowedUrl(url)) void shell.openExternal(url);
+};
+
+/**
+ * @description - 差し替えたexeを起動し直す（二重起動の防止を解いてから新しいプロセスを起動し、自分は終了する）
+ * @return {void} - なし
+ */
+const restartForUpdate = (): void => {
+  const exe: string | undefined = process.env.PORTABLE_EXECUTABLE_FILE;
+  if (updater.status.state !== "ready" || !exe) return;
+  store.flush();
+  app.releaseSingleInstanceLock();
+  const env: NodeJS.ProcessEnv = Object.fromEntries(
+    Object.entries(process.env).filter(([k]: [string, string | undefined]) => !k.startsWith("PORTABLE_EXECUTABLE_")),
+  );
+  const child: ChildProcess = spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: "ignore", env });
+  child.once("spawn", () => {
+    child.unref();
+    app.quit();
+  });
+  child.once("error", (e: Error) => {
+    app.requestSingleInstanceLock();
+    void dialog.showMessageBox({
+      type: "warning",
+      title: PRODUCT_NAME,
+      message: "新しいバージョンを起動できませんでした",
+      detail: `DeskTickを終了してから、もう一度起動してください。\n${e.message}`,
+    });
+  });
+};
+
+/**
  * @description - 右クリックメニューを作る
  * @return {Menu} - メニュー
  */
@@ -237,6 +358,7 @@ const buildMenu = (): Menu => {
     { type: "separator" },
     pauseMenuItem(),
     { type: "separator" },
+    updateMenuItem(),
     { label: "バージョン情報 / ヘルプ", click: () => openSettings("about") },
     { type: "separator" },
     { label: "終了", click: () => app.quit() },
@@ -370,7 +492,40 @@ const registerIpc = (): void => {
     shell.showItemInFolder(store.file);
   });
   ipcMain.on("app:open-licenses", () => void shell.openPath(resolveLicensesPath(process.execPath)));
+
+  ipcMain.handle("update:status", () => updater.status);
+  ipcMain.handle("update:check", () => updater.check());
+  ipcMain.handle("update:install", () => updater.install());
+  ipcMain.on("update:restart", () => restartForUpdate());
+  ipcMain.on("update:open-release", () => openReleasePage());
+  ipcMain.on("update:skip", () => {
+    const v: string | null = updater.status.latestVersion;
+    if (v) updateSettings({ update: { skipVersion: v } });
+  });
 };
+
+/**
+ * @description - 更新を確認・適用するUpdaterを作る
+ * @return {Updater} - Updater
+ */
+const createAppUpdater = (): Updater =>
+  createUpdater({
+    productName: PRODUCT_NAME,
+    currentVersion: app.getVersion(),
+    exePath: app.isPackaged ? (process.env.PORTABLE_EXECUTABLE_FILE ?? null) : null,
+    publicKeys: UPDATE_PUBLIC_KEYS,
+    files: {
+      canWrite: canWriteBeside,
+      stage: stageExe,
+      swap: (exe: string) => swapExe(exe),
+      cleanup: cleanupUpdateFiles,
+    },
+    get: httpGet,
+    settings: () => store.value.update,
+    now: () => Date.now(),
+    onStatus: (s: UpdateStatus) => broadcast("update:status", s),
+    notify: (title: string, body: string) => notifier.show(title, body),
+  });
 
 /**
  * @description - アプリの準備完了後にストア・NTP・通知・ウィンドウ等を起動する
@@ -393,6 +548,7 @@ const boot = (): void => {
     workArea: targetWorkArea,
   });
   alertPause = createAlertPause({ now: () => Date.now(), onChange: updateTrayTooltip });
+  updater = createAppUpdater();
   const scheduler: AlertScheduler = createAlertScheduler({
     alerts: () => allAlerts(store.value.alerts),
     now: () => new Date(Date.now() + ntp.status.offsetMs),
@@ -405,7 +561,14 @@ const boot = (): void => {
   createTray();
   ntp.configure(store.value.ntp);
   scheduler.start();
+  updater.start();
   powerMonitor.on("resume", () => void ntp.syncNow());
+  if (store.readOnly) {
+    notifier.show(
+      `${PRODUCT_NAME}の設定を保存できません`,
+      "config.jsonが新しいバージョンのDeskTickで作られているため、上書きしないようにしています。",
+    );
+  }
   openSettingsFromArgs(process.argv);
 };
 
@@ -418,7 +581,10 @@ if (!app.requestSingleInstanceLock()) {
     openSettingsFromArgs(argv);
   });
   app.on("window-all-closed", () => app.quit());
-  app.on("before-quit", () => store?.flush());
+  app.on("before-quit", () => {
+    updater?.stop();
+    store?.flush();
+  });
 
   void app.whenReady().then(boot);
 }

@@ -363,6 +363,7 @@
       <button data-tab="ntp">時刻同期</button>
       <button data-tab="alerts">通知</button>
       <button data-tab="startup">起動</button>
+      <button data-tab="update">更新</button>
       <button data-tab="about">情報 / ヘルプ</button>
     </nav>
 
@@ -612,6 +613,50 @@
         <p class="note" id="autoStartNote"></p>
       </section>
 
+      <section data-panel="update">
+        <h2>更新</h2>
+        <div class="row">
+          <label for="updateMode">更新の方法</label>
+          <select id="updateMode" data-key="update.mode">
+            <option value="auto">自動で更新する</option>
+            <option value="notify">確認して知らせる（ボタンで更新）</option>
+            <option value="off">自動では確認しない</option>
+          </select>
+        </div>
+        <div class="row">
+          <label for="updateNotify">トーストで知らせる</label>
+          <div><input type="checkbox" id="updateNotify" data-key="update.notify" /></div>
+        </div>
+        <div class="row">
+          <label>現在のバージョン</label>
+          <div id="updateCurrent"></div>
+        </div>
+        <div class="row">
+          <label>状態</label>
+          <div id="updateState">-</div>
+        </div>
+        <div class="row">
+          <span></span>
+          <div class="inline">
+            <button class="btn" id="updateCheck">今すぐ確認</button>
+            <button class="btn" id="updateInstall" hidden>更新する</button>
+            <button class="btn" id="updateRestart" hidden>再起動して更新</button>
+            <button class="btn" id="updateSkip" hidden>このバージョンを通知しない</button>
+            <button class="btn" id="updateRelease">リリースページを開く</button>
+          </div>
+        </div>
+        <p class="note" id="updateBlocked" hidden></p>
+        <p class="note">
+          GitHubのリリースを1日に1回確認します（起動して1分後に1回目）。<br />
+          「自動で更新する」では、新しいバージョンをダウンロードしてexeを差し替え、次に起動したときから新しいバージョンになります。<br />
+          ダウンロードしたファイルは、開発者の署名 (Ed25519)
+          とハッシュを確かめてから使います。確かめられないときは更新しません。<br />
+          設定 (config.json)
+          はそのまま引き継ぎます。差し替える前のexeは、新しいバージョンが起動するまで「DeskTick.exe.old」として残します。<br />
+          「今すぐ確認」は、「自動では確認しない」にしていても使えます。
+        </p>
+      </section>
+
       <section data-panel="about">
         <div class="about-head">
           <img src="icon.png" alt="" />
@@ -703,6 +748,13 @@
             <td>
               30分 / 1時間 / 2時間 / 再開するまで、トーストとダイアログを止める。<br />
               停止中は「通知を再開」に変わる。アプリを起動し直すと再開する
+            </td>
+          </tr>
+          <tr>
+            <th>更新を確認...</th>
+            <td>
+              新しいバージョンを確認する。見つかると「vX.Y.Z に更新...」、差し替えた後は「再起動して vX.Y.Z
+              に更新」に変わる（「更新」タブと同じ）
             </td>
           </tr>
           <tr>

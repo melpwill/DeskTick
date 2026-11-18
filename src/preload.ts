@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { ClockSettings, DeepPartial } from "@/shared/settings";
-import type { AppInfo, AutoStartInfo, DisplayInfo, NtpStatus } from "@/shared/types";
+import type { AppInfo, AutoStartInfo, DisplayInfo, NtpStatus, UpdateStatus } from "@/shared/types";
 
 /**
  * @description - メインプロセスからの通知チャネルを購読する
@@ -32,6 +32,13 @@ export interface Api {
   getAppInfo: () => Promise<AppInfo>;
   openSettingsFolder: () => void;
   openLicenses: () => void;
+  getUpdateStatus: () => Promise<UpdateStatus>;
+  checkUpdate: () => Promise<UpdateStatus>;
+  installUpdate: () => Promise<UpdateStatus>;
+  restartToUpdate: () => void;
+  openReleasePage: () => void;
+  skipUpdate: () => void;
+  onUpdateStatus: (cb: (s: UpdateStatus) => void) => void;
 }
 
 const api: Api = {
@@ -146,6 +153,43 @@ const api: Api = {
    * @return {void} - なし
    */
   openLicenses: (): void => ipcRenderer.send("app:open-licenses"),
+
+  /**
+   * @description - 更新の状態を取得する
+   * @return {Promise<UpdateStatus>} - 更新の状態
+   */
+  getUpdateStatus: (): Promise<UpdateStatus> => ipcRenderer.invoke("update:status"),
+  /**
+   * @description - 今すぐ新しいバージョンを確認する
+   * @return {Promise<UpdateStatus>} - 確認後の状態
+   */
+  checkUpdate: (): Promise<UpdateStatus> => ipcRenderer.invoke("update:check"),
+  /**
+   * @description - 新しいバージョンをダウンロードしてexeを差し替える
+   * @return {Promise<UpdateStatus>} - 処理後の状態
+   */
+  installUpdate: (): Promise<UpdateStatus> => ipcRenderer.invoke("update:install"),
+  /**
+   * @description - 差し替えたexeで起動し直す
+   * @return {void} - なし
+   */
+  restartToUpdate: (): void => ipcRenderer.send("update:restart"),
+  /**
+   * @description - リリースページをブラウザで開く
+   * @return {void} - なし
+   */
+  openReleasePage: (): void => ipcRenderer.send("update:open-release"),
+  /**
+   * @description - 見つかったバージョンを知らせないようにする
+   * @return {void} - なし
+   */
+  skipUpdate: (): void => ipcRenderer.send("update:skip"),
+  /**
+   * @description - 更新の状態の変化を購読する
+   * @param {(s: UpdateStatus) => void} cb - 新しい状態を受け取る関数
+   * @return {void} - なし
+   */
+  onUpdateStatus: (cb: (s: UpdateStatus) => void): void => listen("update:status", cb),
 };
 
 contextBridge.exposeInMainWorld("api", api);
