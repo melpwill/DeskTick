@@ -194,3 +194,10 @@ export const formatClock = (d: Date, pattern: string, locale: string, timeZone: 
     literal !== undefined ? literal : TOKENS[tok]({ p, name, dayPeriod }),
   );
 };
+
+/**
+ * @description - 例外を利用者向けの文言にする
+ * @param {unknown} e - 例外
+ * @return {string} - 文言
+ */
+export const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
