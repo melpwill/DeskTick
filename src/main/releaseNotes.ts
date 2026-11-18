@@ -1,5 +1,6 @@
 import { RELEASES_FEED } from "@/main/githubRelease";
 import { type HttpGetOptions } from "@/main/http";
+import { errorText } from "@/shared/format";
 import { type ReleaseNotesResult } from "@/shared/types";
 
 /** 取得したフィードを使い回す時間 */
@@ -54,7 +55,7 @@ export const createReleaseNotesSource = (opts: ReleaseNotesOptions): ReleaseNote
       cache = { at: opts.now(), feed };
       return { feed, error: null };
     } catch (e) {
-      return { feed: "", error: e instanceof Error ? e.message : String(e) };
+      return { feed: "", error: errorText(e) };
     } finally {
       loading = null;
     }
