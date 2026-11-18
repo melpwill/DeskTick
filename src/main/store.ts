@@ -3,6 +3,7 @@ import * as fs from "fs";
 import { debounce, type DebouncedFunc } from "lodash-es";
 import * as path from "path";
 import { resolveConfigDir } from "@/main/paths";
+import { type MigrationResult, migrateConfig } from "@/shared/configVersion";
 import {
   type ClockSettings,
   DEFAULT_SETTINGS,
@@ -13,6 +14,7 @@ import {
 } from "@/shared/settings";
 
 export const CONFIG_NAME: string = "config.json";
+export const BACKUP_SUFFIX: string = ".bak";
 
 const SAVE_DEBOUNCE_MS: number = 300;
 const WATCH_DEBOUNCE_MS: number = 200;
@@ -21,6 +23,8 @@ const BOM: number = 0xfeff;
 export interface SettingsStore {
   readonly file: string;
   readonly value: ClockSettings;
+  /** config.jsonがこのアプリより新しい版で書かれていて、上書きしないようにしているか */
+  readonly readOnly: boolean;
   /**
    * @description - 設定の一部を更新し、遅延保存を予約する
    * @param {DeepPartial<ClockSettings>} patch - 変更内容
@@ -76,16 +80,37 @@ const readText = (file: string): string | null => {
   }
 };
 
+interface ParsedConfig {
+  readonly settings: ClockSettings;
+  readonly migrated: boolean;
+  readonly tooNew: boolean;
+}
+
 /**
- * @description - ファイル内容を設定として解釈する
+ * @description - ファイル内容を、現在の版の形に変換してから設定として解釈する
  * @param {string} text - ファイル内容
- * @return {ClockSettings | null} - 設定
+ * @return {ParsedConfig | null} - 設定と変換の結果。JSONが不正ならnull
  */
-const parseSettings = (text: string): ClockSettings | null => {
+const parseSettings = (text: string): ParsedConfig | null => {
   try {
-    return settingsFromConfig(JSON.parse(stripBom(text)));
+    const m: MigrationResult = migrateConfig(JSON.parse(stripBom(text)));
+    return { settings: settingsFromConfig(m.raw), migrated: m.migrated, tooNew: m.tooNew };
   } catch {
     return null;
+  }
+};
+
+/**
+ * @description - 版を変換する前のconfig.jsonを残す
+ * @param {string} file - 設定ファイルのパス
+ * @param {string} text - 変換前の内容
+ * @return {void} - なし
+ */
+const backup = (file: string, text: string): void => {
+  try {
+    fs.writeFileSync(`${file}${BACKUP_SUFFIX}`, text);
+  } catch (e) {
+    console.error("Failed to back up config:", e);
   }
 };
 
@@ -98,7 +123,9 @@ export const createSettingsStore = (onExternalChange: (prev: ClockSettings) => v
   const file: string = configPath();
   const fileName: string = path.basename(file).toLowerCase();
   const initialText: string | null = readText(file);
-  let value: ClockSettings = (initialText !== null && parseSettings(initialText)) || structuredClone(DEFAULT_SETTINGS);
+  const initial: ParsedConfig | null = initialText === null ? null : parseSettings(initialText);
+  let value: ClockSettings = initial?.settings ?? structuredClone(DEFAULT_SETTINGS);
+  let readOnly: boolean = initial?.tooNew ?? false;
   let lastWritten: string = "";
 
   /**
@@ -106,6 +133,7 @@ export const createSettingsStore = (onExternalChange: (prev: ClockSettings) => v
    * @return {void} - なし
    */
   const write = (): void => {
+    if (readOnly) return;
     const text: string = serialize(value);
     try {
       lastWritten = text;
@@ -144,10 +172,11 @@ export const createSettingsStore = (onExternalChange: (prev: ClockSettings) => v
   const reloadFromDisk = (): void => {
     const text: string | null = readText(file);
     if (text === null || text === lastWritten) return;
-    const next: ClockSettings | null = parseSettings(text);
+    const next: ParsedConfig | null = parseSettings(text);
     if (!next) return;
     const prev: ClockSettings = value;
-    value = next;
+    value = next.settings;
+    readOnly = next.tooNew;
     onExternalChange(prev);
   };
 
@@ -167,6 +196,10 @@ export const createSettingsStore = (onExternalChange: (prev: ClockSettings) => v
   };
 
   if (!fs.existsSync(file)) write();
+  else if (initial?.migrated) {
+    backup(file, initialText!);
+    write();
+  }
   watch();
 
   return {
@@ -177,6 +210,13 @@ export const createSettingsStore = (onExternalChange: (prev: ClockSettings) => v
      */
     get value(): ClockSettings {
       return value;
+    },
+    /**
+     * @description - 上書きしないようにしているかを返す
+     * @return {boolean} - 新しい版のconfig.jsonならtrue
+     */
+    get readOnly(): boolean {
+      return readOnly;
     },
     /**
      * @description - 設定の一部を更新し、遅延保存を予約する
