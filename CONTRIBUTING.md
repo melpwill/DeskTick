@@ -3,12 +3,15 @@
 ## 必要なもの
 
 - Windows（exeのビルドと動作確認）
-- Node.js 22.13以上（24推奨）
+- Node.js 26（.node-versionで固定）
 - pnpm 11（package.jsonのpackageManagerで固定。corepackで自動的に使われます）
 
 ## セットアップ
 
+Node.js 25以降にはcorepackが同梱されていないため、初回に入れておきます。
+
 ```sh
+npm install -g corepack   # 初回のみ
 corepack enable   # 初回のみ
 pnpm install
 ```
