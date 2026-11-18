@@ -90,6 +90,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
+          # packageManagerからpnpmのキャッシュが自動で有効になるのを止める（このジョブにはpnpmを入れない）
+          package-manager-cache: false
       - uses: actions/download-artifact@v4
         with:
           name: DeskTick-${{ github.ref_name }}
