@@ -1,41 +1,10 @@
 import * as fs from "fs";
+import * as path from "path";
 import { sha256Hex } from "@/main/updateManifest";
 
 export const NEW_SUFFIX: string = ".new";
 export const OLD_SUFFIX: string = ".old";
 const PROBE_SUFFIX: string = ".write-test";
-
-export interface RetryOptions {
-  readonly attempts: number;
-  readonly delayMs: number;
-}
-
-/** ウイルス対策ソフトがダウンロード直後のexeを検査中でロックしている間を待つ */
-export const DEFAULT_RETRY: RetryOptions = { attempts: 20, delayMs: 500 };
-
-/**
- * @description - 指定時間待つ
- * @param {number} ms - ミリ秒
- * @return {Promise<void>} - 待ち終わり
- */
-const sleep = (ms: number): Promise<void> => new Promise<void>((r: () => void) => setTimeout(r, ms));
-
-/**
- * @description - 失敗したら間を空けて何度か試す
- * @param {() => Promise<T>} fn - 処理
- * @param {RetryOptions} opts - 回数と間隔
- * @return {Promise<T>} - 処理の結果
- */
-export const retry = async <T>(fn: () => Promise<T>, opts: RetryOptions): Promise<T> => {
-  for (let i: number = 1; ; i++) {
-    try {
-      return await fn();
-    } catch (e) {
-      if (i >= opts.attempts) throw e;
-      await sleep(opts.delayMs);
-    }
-  }
-};
 
 /**
  * @description - exeと同じディレクトリにファイルを作れるかを確かめる
@@ -72,23 +41,68 @@ export const stageExe = async (exe: string, data: Uint8Array, sha256: string): P
 };
 
 /**
- * @description - 実行中のexeを"<exe>.old"に退避し、"<exe>.new"を元の名前にする（失敗したら元に戻す）
- * @param {string} exe - 現在のexeのパス
- * @param {RetryOptions} opts - 再試行の回数と間隔
- * @return {Promise<void>} - 完了
+ * 終了後に"<exe>.old"へ退避し、"<exe>.new"を元の名前にする（失敗したら元に戻す）。
+ * portable形式のexeは、アプリが終わるまで展開用のスタブが開いたままなので、名前を変えられるまで待つ。
  */
-export const swapExe = async (exe: string, opts: RetryOptions = DEFAULT_RETRY): Promise<void> => {
-  const staged: string = `${exe}${NEW_SUFFIX}`;
-  const old: string = `${exe}${OLD_SUFFIX}`;
-  await retry(() => fs.promises.rm(old, { force: true }), opts);
-  await retry(() => fs.promises.rename(exe, old), opts);
+const SWAP_SCRIPT: string = String.raw`
+$exe = $env:DESKTICK_UPDATE_EXE
+$relaunch = $env:DESKTICK_UPDATE_RELAUNCH -eq '1'
+Remove-Item Env:DESKTICK_UPDATE_EXE, Env:DESKTICK_UPDATE_RELAUNCH -ErrorAction SilentlyContinue
+$new = "$exe${NEW_SUFFIX}"
+$old = "$exe${OLD_SUFFIX}"
+$deadline = (Get-Date).AddSeconds($env:DESKTICK_UPDATE_TIMEOUT_SEC)
+Remove-Item Env:DESKTICK_UPDATE_TIMEOUT_SEC -ErrorAction SilentlyContinue
+function Restore { if (-not [IO.File]::Exists($exe) -and [IO.File]::Exists($old)) { [IO.File]::Move($old, $exe) } }
+while ((Get-Date) -lt $deadline) {
   try {
-    await retry(() => fs.promises.rename(staged, exe), opts);
-  } catch (e) {
-    await retry(() => fs.promises.rename(old, exe), opts);
-    throw e;
-  }
-};
+    Restore
+    if (-not [IO.File]::Exists($new)) { break }
+    if ([IO.File]::Exists($old)) { [IO.File]::Delete($old) }
+    [IO.File]::Move($exe, $old)
+    try { [IO.File]::Move($new, $exe) } catch { [IO.File]::Move($old, $exe); throw }
+    break
+  } catch { Start-Sleep -Milliseconds 500 }
+}
+try { Restore } catch {}
+if ($relaunch -and [IO.File]::Exists($exe)) { Start-Process -FilePath $exe -WorkingDirectory ([IO.Path]::GetDirectoryName($exe)) }
+`;
+
+/** アプリの終了に時間がかかっても待つ長さ */
+export const SWAP_TIMEOUT_SEC: number = 120;
+
+export interface HelperCommand {
+  readonly file: string;
+  readonly args: readonly string[];
+  readonly env: Readonly<Record<string, string>>;
+}
+
+/**
+ * @description - アプリの終了後にexeを差し替えるPowerShellのコマンドを作る
+ * @param {string} exe - 現在のexeのパス
+ * @param {boolean} relaunch - 差し替えた後にexeを起動するか
+ * @param {string | undefined} systemRoot - Windowsのディレクトリ（%SystemRoot%。なければPATHから探す）
+ * @return {HelperCommand} - 起動するコマンド（パスは環境変数で渡す）
+ */
+export const swapCommand = (exe: string, relaunch: boolean, systemRoot: string | undefined): HelperCommand => ({
+  file: systemRoot
+    ? path.win32.join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+    : "powershell.exe",
+  args: [
+    "-NoProfile",
+    "-NonInteractive",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-WindowStyle",
+    "Hidden",
+    "-EncodedCommand",
+    Buffer.from(SWAP_SCRIPT, "utf16le").toString("base64"),
+  ],
+  env: {
+    DESKTICK_UPDATE_EXE: exe,
+    DESKTICK_UPDATE_RELAUNCH: relaunch ? "1" : "0",
+    DESKTICK_UPDATE_TIMEOUT_SEC: String(SWAP_TIMEOUT_SEC),
+  },
+});
 
 /**
  * @description - 前回の更新で残った"<exe>.new"と"<exe>.old"を消す（消せなければ次回に回す）

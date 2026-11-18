@@ -118,7 +118,6 @@ beforeEach(() => {
   files = {
     canWrite: vi.fn(async () => true),
     stage: vi.fn(async (exe: string) => `${exe}.new`),
-    swap: vi.fn(async () => undefined),
     cleanup: vi.fn(async () => undefined),
   };
   settings = { mode: "notify", notify: true, skipVersion: "" };
@@ -242,7 +241,7 @@ describe("install", () => {
     expect(get).not.toHaveBeenCalled();
   });
 
-  it("ダウンロードして内容を確かめ、exeを差し替える", async () => {
+  it("ダウンロードして内容を確かめ、exeの横に置く", async () => {
     const u = make();
     await u.check();
     onStatus.mockClear();
@@ -255,7 +254,6 @@ describe("install", () => {
       onProgress: expect.any(Function),
     });
     expect(files.stage).toHaveBeenCalledWith(EXE_PATH, NEW_EXE, sha256Hex(NEW_EXE));
-    expect(files.swap).toHaveBeenCalledWith(EXE_PATH);
     expect(onStatus.mock.calls.map(([x]) => [x.state, x.progress])).toEqual([
       ["downloading", 0],
       ["downloading", 0.5],
@@ -264,7 +262,7 @@ describe("install", () => {
     ]);
   });
 
-  it("差し替えた後は、再起動するまで確認も差し替えもしない", async () => {
+  it("ダウンロードした後は、終了するまで確認もダウンロードもしない", async () => {
     const u = make();
     await u.check();
     await u.install();
@@ -290,8 +288,8 @@ describe("install", () => {
     await expect(u.install()).resolves.toMatchObject({ error: "ダウンロードしたファイルが壊れています" });
   });
 
-  it("差し替えに失敗したら理由を示し、もう一度試せるようにする", async () => {
-    files.swap.mockRejectedValueOnce(new Error("EBUSY"));
+  it("書き込みに失敗したら理由を示し、もう一度試せるようにする", async () => {
+    files.stage.mockRejectedValueOnce(new Error("EBUSY"));
     const u = make();
     await u.check();
     await expect(u.install()).resolves.toMatchObject({ state: "available", error: "EBUSY" });
@@ -397,13 +395,13 @@ describe("start (定期的な確認)", () => {
     u.stop();
   });
 
-  it("自動で更新するなら差し替えまで行い、完了を知らせる", async () => {
+  it("自動で更新するならダウンロードまで行い、完了を知らせる", async () => {
     settings.mode = "auto";
     const u = make();
     u.start();
     await vi.advanceTimersByTimeAsync(FIRST_CHECK_DELAY_MS);
     expect(u.status.state).toBe("ready");
-    expect(files.swap).toHaveBeenCalledTimes(1);
+    expect(files.stage).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledWith("DeskTick v1.3.0 に更新しました", expect.any(String));
 
     await vi.advanceTimersByTimeAsync(CHECK_INTERVAL_MS * 2);
@@ -414,7 +412,7 @@ describe("start (定期的な確認)", () => {
 
   it("自動の更新に失敗したら知らせる", async () => {
     settings.mode = "auto";
-    files.swap.mockRejectedValue(new Error("EBUSY"));
+    files.stage.mockRejectedValue(new Error("EBUSY"));
     const u = make();
     u.start();
     await vi.advanceTimersByTimeAsync(FIRST_CHECK_DELAY_MS);
@@ -451,7 +449,7 @@ describe("start (定期的な確認)", () => {
     u.start();
     await vi.advanceTimersByTimeAsync(FIRST_CHECK_DELAY_MS);
     expect(u.status.state).toBe("available");
-    expect(files.swap).not.toHaveBeenCalled();
+    expect(files.stage).not.toHaveBeenCalled();
     expect(notify).toHaveBeenCalledWith("DeskTick v1.3.0 があります", expect.any(String));
     u.stop();
   });

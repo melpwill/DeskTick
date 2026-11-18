@@ -166,12 +166,12 @@ const api: Api = {
    */
   checkUpdate: (): Promise<UpdateStatus> => ipcRenderer.invoke("update:check"),
   /**
-   * @description - 新しいバージョンをダウンロードしてexeを差し替える
+   * @description - 新しいバージョンをダウンロードする（exeの差し替えは終了後）
    * @return {Promise<UpdateStatus>} - 処理後の状態
    */
   installUpdate: (): Promise<UpdateStatus> => ipcRenderer.invoke("update:install"),
   /**
-   * @description - 差し替えたexeで起動し直す
+   * @description - 終了してexeを差し替え、新しいバージョンで起動し直す
    * @return {void} - なし
    */
   restartToUpdate: (): void => ipcRenderer.send("update:restart"),

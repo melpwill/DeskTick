@@ -1,3 +1,4 @@
+import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -5,16 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   canWriteBeside,
   cleanupUpdateFiles,
-  DEFAULT_RETRY,
   NEW_SUFFIX,
   OLD_SUFFIX,
-  retry,
   stageExe,
-  swapExe,
+  swapCommand,
+  SWAP_TIMEOUT_SEC,
 } from "@/main/updateFiles";
 import { sha256Hex } from "@/main/updateManifest";
-
-const FAST = { attempts: 3, delayMs: 0 };
 
 let dir: string;
 let exe: string;
@@ -29,22 +27,6 @@ beforeEach(() => {
 
 afterEach(() => {
   fs.rmSync(dir, { recursive: true, force: true });
-});
-
-describe("retry", () => {
-  it("成功するまで試し、回数を使い切ったら最後の例外を投げる", async () => {
-    const ok = vi.fn().mockRejectedValueOnce(new Error("busy")).mockResolvedValue(1);
-    await expect(retry(ok, FAST)).resolves.toBe(1);
-    expect(ok).toHaveBeenCalledTimes(2);
-
-    const ng = vi.fn().mockRejectedValue(new Error("busy"));
-    await expect(retry(ng, FAST)).rejects.toThrow("busy");
-    expect(ng).toHaveBeenCalledTimes(3);
-  });
-
-  it("既定では10秒ほど待つ", () => {
-    expect(DEFAULT_RETRY.attempts * DEFAULT_RETRY.delayMs).toBe(10_000);
-  });
 });
 
 describe("canWriteBeside", () => {
@@ -72,30 +54,57 @@ describe("stageExe", () => {
   });
 });
 
-describe("swapExe", () => {
-  it("現在のexeを<exe>.oldに退避し、<exe>.newを元の名前にする", async () => {
-    fs.writeFileSync(`${exe}${NEW_SUFFIX}`, "new");
-    fs.writeFileSync(`${exe}${OLD_SUFFIX}`, "older");
-    await swapExe(exe, FAST);
-    expect(read(exe)).toBe("new");
-    expect(read(`${exe}${OLD_SUFFIX}`)).toBe("old");
-    expect(fs.existsSync(`${exe}${NEW_SUFFIX}`)).toBe(false);
+describe("swapCommand", () => {
+  const script = (args: readonly string[]): string =>
+    Buffer.from(args[args.indexOf("-EncodedCommand") + 1], "base64").toString("utf16le");
+
+  it("%SystemRoot%のPowerShellを使い、パスは環境変数で渡す", () => {
+    const spaced = path.join(dir, "Desk Tick", "DeskTick.exe");
+    const cmd = swapCommand(spaced, true, path.join(dir, "Win"));
+    expect(cmd.file).toBe(path.win32.join(dir, "Win", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"));
+    expect(cmd.args).toContain("-NoProfile");
+    expect(cmd.env).toEqual({
+      DESKTICK_UPDATE_EXE: spaced,
+      DESKTICK_UPDATE_RELAUNCH: "1",
+      DESKTICK_UPDATE_TIMEOUT_SEC: String(SWAP_TIMEOUT_SEC),
+    });
+    expect(script(cmd.args)).toContain(`"$exe${NEW_SUFFIX}"`);
+    expect(script(cmd.args)).not.toContain("Desk Tick");
   });
 
-  it("新しいexeを置けなければ元のexeに戻す", async () => {
-    await expect(swapExe(exe, FAST)).rejects.toThrow();
-    expect(read(exe)).toBe("old");
-    expect(fs.existsSync(`${exe}${OLD_SUFFIX}`)).toBe(false);
+  it("%SystemRoot%がなければPATHから探し、起動し直さないこともできる", () => {
+    const cmd = swapCommand(exe, false, undefined);
+    expect(cmd.file).toBe("powershell.exe");
+    expect(cmd.env.DESKTICK_UPDATE_RELAUNCH).toBe("0");
   });
 
-  it("一時的に失敗しても再試行する", async () => {
-    fs.writeFileSync(`${exe}${NEW_SUFFIX}`, "new");
-    const rename = vi
-      .spyOn(fs.promises, "rename")
-      .mockRejectedValueOnce(Object.assign(new Error("EBUSY"), { code: "EBUSY" }));
-    await swapExe(exe, FAST);
-    expect(rename).toHaveBeenCalledTimes(3);
-    expect(read(exe)).toBe("new");
+  describe.runIf(process.platform === "win32")("PowerShellで実行する", () => {
+    const run = (): void => {
+      const cmd = swapCommand(exe, false, process.env.SystemRoot);
+      execFileSync(cmd.file, cmd.args, { env: { ...process.env, ...cmd.env }, timeout: 30_000 });
+    };
+
+    it("現在のexeを<exe>.oldに退避し、<exe>.newを元の名前にする", () => {
+      fs.writeFileSync(`${exe}${NEW_SUFFIX}`, "new");
+      fs.writeFileSync(`${exe}${OLD_SUFFIX}`, "older");
+      run();
+      expect(read(exe)).toBe("new");
+      expect(read(`${exe}${OLD_SUFFIX}`)).toBe("old");
+      expect(fs.existsSync(`${exe}${NEW_SUFFIX}`)).toBe(false);
+    });
+
+    it("<exe>.newがなければ何もしない", () => {
+      run();
+      expect(fs.readdirSync(dir)).toEqual(["DeskTick.exe"]);
+      expect(read(exe)).toBe("old");
+    });
+
+    it("前回の途中で<exe>がなければ<exe>.oldから戻す", () => {
+      fs.renameSync(exe, `${exe}${OLD_SUFFIX}`);
+      run();
+      expect(fs.readdirSync(dir)).toEqual(["DeskTick.exe"]);
+      expect(read(exe)).toBe("old");
+    });
   });
 });
 
