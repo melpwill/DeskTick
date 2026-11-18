@@ -7,6 +7,7 @@
 - NTPサーバの時刻に合わせた表示
 - 定時・起立・水分補給・食事・カスタムの通知（一定間隔/指定時刻/併用）
 - 設定はexeと同じディレクトリのconfig.jsonで管理
+- GitHubのリリースからの更新（署名を確かめてからexeを差し替え）
 
 ## 使い方
 
@@ -42,6 +43,7 @@ DeskTick.exeとconfig.jsonを同じディレクトリに置いて、DeskTick.exe
 | デフォルト位置に戻す    | ドラッグで動かした時計を、「位置」タブで設定した位置に戻す           |
 | 最前面に固定            | ほかのウィンドウより常に手前に表示する（「位置」タブの設定と同じ）   |
 | 通知を一時停止          | トーストとダイアログを一定時間止める（詳しくは[通知](#通知)）        |
+| 更新を確認...           | 新しいバージョンを確認する（詳しくは[更新](#更新)）                  |
 | バージョン情報 / ヘルプ | 設定画面の「情報/ヘルプ」タブを開く                                  |
 | 終了                    | DeskTickを終了する                                                   |
 
@@ -55,6 +57,7 @@ DeskTick.exeとconfig.jsonを同じディレクトリに置いて、DeskTick.exe
 | 時刻同期    | NTPのオン/オフ、サーバ、同期間隔、同期状態                             |
 | 通知        | 各アラートのオン/オフ、スケジュール、文言、通知方法、テスト通知        |
 | 起動        | Windows起動時に自動で開始                                              |
+| 更新        | 更新の方法、トーストで知らせるか、今すぐ確認・更新                     |
 | 情報/ヘルプ | バージョン、設定ファイルの場所、使い方、ライセンス                     |
 
 設定は変更するとすぐ反映され、config.jsonに保存されます。
@@ -121,6 +124,45 @@ PCの時計は変更せず、時計の表示と通知の判定だけをNTPサー
 UDP 123番ポートを使用します。  
 同期できない場合は前回のずれ（初回はPCの時刻）を使います。
 
+### 更新
+
+GitHubのリリースを確認して、新しいバージョンに更新できます。  
+「更新」タブの「更新の方法」で、次の3つから選べます（初期値：確認して知らせる）。
+
+| 更新の方法         | 動作                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| 自動で更新する     | 新しいバージョンをダウンロードしてexeを差し替える。次に起動したときから新しいバージョン |
+| 確認して知らせる   | 新しいバージョンがあれば知らせる。メニューか「更新」タブのボタンで更新する              |
+| 自動では確認しない | 自分で「今すぐ確認」/メニューの「更新を確認...」を押したときだけ確認する                |
+
+- 起動して1分後に1回目、その後は1日1回確認します（失敗したときは1時間後にもう一度）。
+- 「トーストで知らせる」をオフにすると、新しいバージョンや更新の完了をトーストで知らせません。
+- 知らせたくないバージョンは「このバージョンを通知しない」で止められます。
+- 更新しても、config.jsonはそのまま引き継ぎます。
+- 差し替えたあとは、メニューの「再起動してvX.Y.Zに更新」で、すぐに新しいバージョンにできます。
+
+ダウンロードしたファイルは、次の順に確かめてから使います。1つでも合わなければ更新しません。
+
+1. 接続先がGitHub（api.github.com、github.com、配布用のgithubusercontent.com）のHTTPSであること（転送先も1つずつ確認）
+2. リリースに付いたDeskTick-update.jsonの署名（Ed25519）が、アプリに埋め込んだ開発者の公開鍵で検証できること
+3. DeskTick-update.jsonに書かれたバージョンがリリースのタグと一致し、今より新しいこと
+4. ダウンロードしたexeの大きさとSHA-256が、DeskTick-update.jsonの内容と一致すること
+
+exeの差し替えは次のように行います。
+
+1. 新しいexeをDeskTick.exe.newとして書き込む
+2. 実行中のDeskTick.exeをDeskTick.exe.oldに名前を変え、DeskTick.exe.newをDeskTick.exeにする（失敗したら元に戻す）
+3. 新しいバージョンが起動して1分たったら、DeskTick.exe.oldを削除する
+
+新しいバージョンが起動しない場合は、DeskTickを終了してからDeskTick.exe.oldをDeskTick.exeに戻してください。
+
+exeのあるフォルダーに書き込めない場合（Program Filesなど）は、差し替えずに知らせるだけにします。  
+「リリースページを開く」から手動でダウンロードしてください。  
+社内のプロキシなど、OSのプロキシ設定にしたがって接続します。
+
+新しいバージョンでconfig.jsonの形が変わった場合は、起動時に自動で変換し、変換前の内容をconfig.json.bakに残します。  
+古いバージョンに戻した場合など、config.jsonがアプリより新しいバージョンで作られているときは、config.jsonを上書きしません（変更はその間だけ有効）。
+
 ### PCに作成されるもの
 
 exeとconfig.json以外に、次のものが作られます。
@@ -131,98 +173,15 @@ exeとconfig.json以外に、次のものが作られます。
 | スタートメニューのDeskTick.lnk                            | Windowsでトースト通知を出すために必要（最初の通知時に作成） |
 | HKCU\Software\Classes\AppUserModelId\jp.melpwill.desktick | 通知に表示するアプリ名とアイコン                            |
 | HKCU\...\CurrentVersion\Run                               | 「Windows起動時に開始」をオンにした場合のみ                 |
+| exeと同じディレクトリのDeskTick.exe.new / .old            | 更新中の一時ファイル（更新が終わると削除）                  |
+| exeと同じディレクトリのconfig.json.bak                    | config.jsonの形を変換したときの、変換前の内容               |
 
 自動スタートアップには、その時点のexeの場所が登録されます。  
 exeを移動した場合は、一度オフにしてからオンにし直してください。
 
 ## 開発
 
-### 必要なもの
-
-- Windows（exeのビルドと動作確認）
-- Node.js 22.13以上（24推奨）
-- pnpm 11（package.jsonのpackageManagerで固定。corepackで自動的に使われます）
-
-### セットアップ
-
-```sh
-corepack enable   # 初回のみ
-pnpm install
-```
-
-### コマンド
-
-| コマンド                        | 内容                                                              |
-| ------------------------------- | ----------------------------------------------------------------- |
-| pnpm start                      | ビルドして開発起動（プロジェクト直下のconfig.jsonを使用）         |
-| pnpm dist                       | exeをビルドし、release/DeskTick/にDeskTick.exeとconfig.jsonを出力 |
-| pnpm check                      | 下の4つをまとめて実行                                             |
-| pnpm lint                       | ESLint                                                            |
-| pnpm format / pnpm format:check | Prettierで整形/整形済みか確認                                     |
-| pnpm typecheck                  | TypeScriptの型チェック                                            |
-| pnpm test / pnpm test:coverage  | Vitest/カバレッジ付き（100%未満で失敗）                           |
-
-pnpm startに`-- --settings`を付けると、起動時に設定画面が開きます。  
-`--settings=alerts`のようにタブも指定できます。
-
-VS Codeの統合ターミナルでは環境変数ELECTRON_RUN_AS_NODE=1が設定されているため、Electronが起動しません。  
-外部のターミナルを使うか、この変数を外して実行してください。
-
-### 構成
-
-```text
-src/
-  main.ts                 メインプロセスの組み立て（ウィンドウ・トレイ・メニュー・IPC の配線のみ）
-  preload.ts              画面側に公開する API（window.api）
-  main/                   メインプロセスの部品
-    store.ts              config.json の読み書きと変更監視
-    ntp.ts                SNTP クライアントと定期同期
-    alertScheduler.ts     毎秒の時刻チェックと通知の発火
-    notifier.ts           トースト通知（ショートカット・AppUserModelId の登録）
-    toastXml.ts           トースト通知の XML 生成
-    alertDialogs.ts       ダイアログ通知のウィンドウ管理（右下への積み重ね）
-    alertPause.ts         通知の一時停止と自動再開
-    fonts.ts              インストール済みフォントの一覧取得
-    placement.ts          ウィンドウの配置計算（基準の角・余白・リサイズ・積み重ね）
-    displays.ts           ディスプレイ一覧の表示用ラベル
-    appInfo.ts            バージョン情報・自動起動の情報
-    paths.ts              exe と config.json の場所の解決
-    cli.ts                起動オプション（--settings）の解析
-    settingsChanges.ts    設定変更の差分判定
-  renderer/               画面側
-    clock.ts              時計ウィンドウ
-    alertDialog.ts        ダイアログ通知の画面
-    settings.ts           設定画面の組み立て
-    settingsFields.ts     data-key 属性による入力欄と設定の対応付け
-    settingsValidation.ts 入力値の検証
-    tabs.ts               タブの切り替え
-    preview.ts            表示タブのプレビュー
-    ntpStatus.ts          時刻同期の状態表示
-    about.ts              情報タブ
-    autoStart.ts          自動起動の設定
-    choices.ts            フォント・ディスプレイの選択肢
-    tokens.ts             書式トークンの一覧表
-    alertsPanel.ts        「通知」タブの組み立て
-    alertList.ts          アラート一覧
-    alertEditor.ts        アラートの編集欄
-    alertScheduleRows.ts  スケジュール欄（一定間隔・指定時刻・曜日・繰り返し）
-    alertDraft.ts         編集中アラートの不変な更新
-    alertLogic.ts         「通知」タブの純粋なロジック
-    dom.ts                DOM 生成の小さなヘルパー
-    timing.ts             次の秒境界までの待ち時間
-    api.ts                window.api の型
-  shared/                 メイン・画面の両方で使う処理
-    settings.ts           設定の型・初期値
-    alerts.ts             アラートの型・初期値・通知判定・要約表示
-    format.ts             日時の書式処理
-    clockView.ts          時計の見た目（時計ウィンドウとプレビューで共用）
-    merge.ts              設定のマージ
-    types.ts              共通の型定義
-static/                   HTML とアイコン
-test/                     Vitest のテスト（main / renderer / shared）
-scripts/build.mts         esbuild によるバンドル
-scripts/package.mts       配布用ディレクトリの作成
-```
+開発環境・コマンド・構成は[CONTRIBUTING.md](CONTRIBUTING.md)を参照してください。
 
 ## ライセンス
 
