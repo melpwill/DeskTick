@@ -71,10 +71,10 @@ describe("verifySignature", () => {
   it("Ed25519でない鍵や壊れた鍵は使わない", () => {
     const a = pair();
     const data = manifest();
-    const rsa = generateKeyPairSync("rsa", { modulusLength: 1024 })
+    const ec = generateKeyPairSync("ec", { namedCurve: "P-256" })
       .publicKey.export({ format: "der", type: "spki" })
       .toString("base64");
-    expect(verifySignature(data, sigFile(data, a.priv), [rsa, "broken"])).toBe(false);
+    expect(verifySignature(data, sigFile(data, a.priv), [ec, "broken"])).toBe(false);
   });
 });
 
