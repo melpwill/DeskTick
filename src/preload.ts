@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { ClockSettings, DeepPartial } from "@/shared/settings";
-import type { AppInfo, AutoStartInfo, DisplayInfo, NtpStatus, UpdateStatus } from "@/shared/types";
+import type { AppInfo, AutoStartInfo, DisplayInfo, NtpStatus, ReleaseNotesResult, UpdateStatus } from "@/shared/types";
 
 /**
  * @description - メインプロセスからの通知チャネルを購読する
@@ -39,6 +39,7 @@ export interface Api {
   openReleasePage: () => void;
   skipUpdate: () => void;
   onUpdateStatus: (cb: (s: UpdateStatus) => void) => void;
+  getReleaseNotes: () => Promise<ReleaseNotesResult>;
 }
 
 const api: Api = {
@@ -190,6 +191,11 @@ const api: Api = {
    * @return {void} - なし
    */
   onUpdateStatus: (cb: (s: UpdateStatus) => void): void => listen("update:status", cb),
+  /**
+   * @description - GitHubのリリースノートの一覧を取得する
+   * @return {Promise<ReleaseNotesResult>} - リリースノートか、取得できなかった理由
+   */
+  getReleaseNotes: (): Promise<ReleaseNotesResult> => ipcRenderer.invoke("release-notes:get"),
 };
 
 contextBridge.exposeInMainWorld("api", api);
