@@ -151,7 +151,7 @@ GitHubのリリースを確認して、新しいバージョンに更新でき�
 exeの差し替えは次のように行います。
 
 1. 新しいexeをDeskTick.exe.newとして書き込む
-2. DeskTickを終了するときに、差し替え用のPowerShellを起動する（実行中のDeskTick.exeは名前を変えられないため）
+2. DeskTickを終了するときに、差し替え用のPowerShellをWMIで起動する（実行中のDeskTick.exeは名前を変えられないため。DeskTickと一緒に終了させられないよう、DeskTickとは別に起動する）
 3. PowerShellは、DeskTickが終わるのを待ってから（最大2分）、DeskTick.exeをDeskTick.exe.oldに名前を変え、DeskTick.exe.newをDeskTick.exeにする（失敗したら元に戻す）。「再起動して更新」のときは、続けて新しいバージョンを起動する
 4. 新しいバージョンが起動して1分たったら、DeskTick.exe.oldを削除する
 

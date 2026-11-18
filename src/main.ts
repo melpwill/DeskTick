@@ -44,6 +44,7 @@ const APP_USER_MODEL_ID: string = "jp.melpwill.desktick";
 const STATIC_DIR: string = path.join(__dirname, "..", "static");
 const ICON_PATH: string = path.join(STATIC_DIR, "icon.png");
 const PRELOAD: string = path.join(__dirname, "preload.js");
+const SWAP_LAUNCH_TIMEOUT_MS: number = 15_000;
 
 let store: SettingsStore;
 let ntp: NtpSync;
@@ -56,7 +57,7 @@ let clockWin: BrowserWindow | null = null;
 let settingsWin: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let placed: boolean = false;
-let swapHelperStarted: boolean = false;
+let swapHelperLaunched: boolean = false;
 
 /**
  * @description - 実際の.exeのパスを返す
@@ -315,29 +316,31 @@ const openReleasePage = (): void => {
 };
 
 /**
- * @description - ダウンロード済みの更新があれば、アプリの終了後にexeを差し替えるヘルパーを起動する（1回だけ）
+ * @description - ダウンロード済みの更新があれば、アプリの終了後にexeを差し替えるヘルパーを起動する（1回だけ。失敗しても繰り返さない）
  * @param {boolean} relaunch - 差し替えた後に新しいバージョンを起動するか
- * @return {ChildProcess | null} - 起動したヘルパー（差し替えるものがなければnull）
+ * @return {Promise<boolean> | null} - 起動できたか（差し替えるものがなければnull）
  */
-const startSwapHelper = (relaunch: boolean): ChildProcess | null => {
+const launchSwapHelper = (relaunch: boolean): Promise<boolean> | null => {
   const exe: string | undefined = process.env.PORTABLE_EXECUTABLE_FILE;
-  if (swapHelperStarted || updater?.status.state !== "ready" || !exe) return null;
-  swapHelperStarted = true;
+  if (swapHelperLaunched || updater?.status.state !== "ready" || !exe) return null;
+  swapHelperLaunched = true;
   const cmd: HelperCommand = swapCommand(exe, relaunch, process.env.SystemRoot);
-  const env: NodeJS.ProcessEnv = Object.fromEntries(
-    Object.entries(process.env).filter(([k]: [string, string | undefined]) => !k.startsWith("PORTABLE_EXECUTABLE_")),
-  );
-  const child: ChildProcess = spawn(cmd.file, cmd.args, {
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-    env: { ...env, ...cmd.env },
+  return new Promise<boolean>((resolve: (ok: boolean) => void) => {
+    const child: ChildProcess = spawn(cmd.file, cmd.args, {
+      stdio: "ignore",
+      windowsHide: true,
+      env: { ...process.env, ...cmd.env },
+    });
+    const timer: NodeJS.Timeout = setTimeout(() => child.kill(), SWAP_LAUNCH_TIMEOUT_MS);
+    child.once("error", () => {
+      clearTimeout(timer);
+      resolve(false);
+    });
+    child.once("exit", (code: number | null) => {
+      clearTimeout(timer);
+      resolve(code === 0);
+    });
   });
-  child.once("spawn", () => child.unref());
-  child.once("error", () => {
-    swapHelperStarted = false;
-  });
-  return child;
 };
 
 /**
@@ -346,15 +349,16 @@ const startSwapHelper = (relaunch: boolean): ChildProcess | null => {
  */
 const restartForUpdate = (): void => {
   store.flush();
-  const child: ChildProcess | null = startSwapHelper(true);
-  if (!child) return;
-  child.once("spawn", () => app.quit());
-  child.once("error", (e: Error) => {
+  void launchSwapHelper(true)?.then((ok: boolean) => {
+    if (ok) {
+      app.quit();
+      return;
+    }
     void dialog.showMessageBox({
       type: "warning",
       title: PRODUCT_NAME,
       message: "更新を適用できませんでした",
-      detail: `exeを差し替える処理（PowerShell）を起動できませんでした。リリースページから手動で更新してください。\n${e.message}`,
+      detail: "exeを差し替える処理（PowerShell）を起動できませんでした。リリースページから手動で更新してください。",
     });
   });
 };
@@ -602,10 +606,15 @@ if (!app.requestSingleInstanceLock()) {
     openSettingsFromArgs(argv);
   });
   app.on("window-all-closed", () => app.quit());
-  app.on("before-quit", () => {
+  app.on("before-quit", (e: Electron.Event) => {
+    const launching: Promise<boolean> | null = launchSwapHelper(false);
+    if (launching) {
+      e.preventDefault();
+      void launching.then(() => app.quit());
+      return;
+    }
     updater?.stop();
     store?.flush();
-    startSwapHelper(false);
   });
 
   void app.whenReady().then(boot);
