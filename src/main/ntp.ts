@@ -1,6 +1,7 @@
 import * as dgram from "dgram";
 import { promises as dns } from "dns";
 import { isEqual, pick } from "lodash-es";
+import { errorText } from "@/shared/format";
 import { type ClockSettings } from "@/shared/settings";
 import { type NtpStatus } from "@/shared/types";
 
@@ -189,7 +190,7 @@ export const createNtpSync = (onChange: (s: NtpStatus) => void): NtpSync => {
       schedule(intervalMs(cfg));
     } catch (e) {
       if (current !== cfg) return status;
-      set({ error: e instanceof Error ? e.message : String(e), syncing: false });
+      set({ error: errorText(e), syncing: false });
       schedule(Math.min(RETRY_MS, intervalMs(cfg)));
     }
     return status;

@@ -16,6 +16,7 @@ import {
   type UpdateManifest,
   verifySignature,
 } from "@/main/updateManifest";
+import { errorText } from "@/shared/format";
 import { type UpdateSettings } from "@/shared/settings";
 import { type UpdateStatus } from "@/shared/types";
 import { isNewerVersion } from "@/shared/version";
@@ -132,13 +133,6 @@ interface Pending {
   readonly manifest: UpdateManifest;
   readonly exe: ReleaseAsset;
 }
-
-/**
- * @description - 例外を利用者向けの文言にする
- * @param {unknown} e - 例外
- * @return {string} - 文言
- */
-const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 /**
  * @description - リリースから指定の名前の添付ファイルを探す

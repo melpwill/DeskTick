@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatClock, isValidLocale, isValidTimeZone, padNumber } from "@/shared/format";
+import { errorText, formatClock, isValidLocale, isValidTimeZone, padNumber } from "@/shared/format";
 
 const d: Date = new Date(2026, 9, 10, 21, 5, 7); // ローカル時刻 2026-10-10 (土) 21:05:07
 const morning: Date = new Date(2026, 0, 2, 0, 3, 4); // ローカル時刻 2026-01-02 (金) 00:03:04
@@ -61,5 +61,13 @@ describe("formatClock", () => {
     vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockReturnValue([]);
     expect(formatClock(morning, "A", "ja-JP", "")).toBe("AM");
     expect(formatClock(d, "A", "ja-JP", "")).toBe("PM");
+  });
+});
+
+describe("errorText", () => {
+  it("Errorならメッセージを、それ以外は文字列にして返す", () => {
+    expect(errorText(new Error("失敗"))).toBe("失敗");
+    expect(errorText("timeout")).toBe("timeout");
+    expect(errorText(42)).toBe("42");
   });
 });
