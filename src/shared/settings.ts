@@ -1,5 +1,6 @@
 import { clamp } from "lodash-es";
 import { type AlertsSettings, DEFAULT_ALERTS, normalizeAlerts } from "@/shared/alerts";
+import { CONFIG_VERSION } from "@/shared/configVersion";
 import { type DeepPartial, mergeSettings } from "@/shared/merge";
 
 export type { DeepPartial };
@@ -7,12 +8,26 @@ export { mergeSettings };
 
 export type Corner = "top-right" | "top-left" | "bottom-right" | "bottom-left";
 
+export type UpdateMode = "auto" | "notify" | "off";
+
+export const UPDATE_MODES: readonly UpdateMode[] = ["auto", "notify", "off"];
+
+export interface UpdateSettings {
+  /** auto: 自動で更新 / notify: 確認だけして知らせる / off: 自動では確認しない */
+  mode: UpdateMode;
+  /** 新しいバージョンや更新の完了をトーストで知らせるか */
+  notify: boolean;
+  /** 知らせないことにしたバージョン */
+  skipVersion: string;
+}
+
 export interface ColorSetting {
   color: string;
   alpha: number;
 }
 
 export interface ClockSettings {
+  configVersion: number;
   font: { family: string; weight: number; line1Size: number; line2Size: number };
   foreground: ColorSetting;
   background: ColorSetting;
@@ -26,9 +41,11 @@ export interface ClockSettings {
   alwaysOnTop: boolean;
   ntp: { enabled: boolean; server: string; intervalMin: number };
   alerts: AlertsSettings;
+  update: UpdateSettings;
 }
 
 export const DEFAULT_SETTINGS: ClockSettings = {
+  configVersion: CONFIG_VERSION,
   font: { family: "UDEV Gothic", weight: 600, line1Size: 16, line2Size: 28 },
   foreground: { color: "#ffffff", alpha: 1 },
   background: { color: "#000000", alpha: 0.2 },
@@ -42,6 +59,7 @@ export const DEFAULT_SETTINGS: ClockSettings = {
   alwaysOnTop: true,
   ntp: { enabled: true, server: "ntp.nict.jp", intervalMin: 60 },
   alerts: DEFAULT_ALERTS,
+  update: { mode: "notify", notify: true, skipVersion: "" },
 };
 
 /**
@@ -57,7 +75,12 @@ export const settingsFromConfig = (raw: unknown): ClockSettings =>
  * @param {ClockSettings} s - 設定
  * @return {ClockSettings} - 正規化した新しい設定
  */
-export const normalizeSettings = (s: ClockSettings): ClockSettings => ({ ...s, alerts: normalizeAlerts(s.alerts) });
+export const normalizeSettings = (s: ClockSettings): ClockSettings => ({
+  ...s,
+  configVersion: CONFIG_VERSION,
+  alerts: normalizeAlerts(s.alerts),
+  update: { ...s.update, mode: UPDATE_MODES.includes(s.update.mode) ? s.update.mode : DEFAULT_SETTINGS.update.mode },
+});
 
 const FALLBACK_RGB: readonly number[] = [255, 255, 255];
 
