@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
 import { formatUpdateStatus, initUpdatePanel, renderUpdateStatus } from "@/renderer/updatePanel";
-import { asApi, flush, loadBody, type MockApi, mockApi, updateStatus } from "@test/renderer/helpers";
+import { asApi, feed, feedEntry, flush, loadBody, type MockApi, mockApi, updateStatus } from "@test/renderer/helpers";
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const visibleButtons = (): string[] =>
@@ -100,6 +100,37 @@ describe("initUpdatePanel", () => {
 
     $("updateRelease").click();
     expect(m.api.openReleasePage).toHaveBeenCalled();
+  });
+
+  it("新しいバージョンが見つかったら、今のバージョンより後の変更内容を見られる", async () => {
+    m.api.getReleaseNotes.mockResolvedValue({
+      feed: feed(...["v1.4.0", "v1.3.0", "v1.2.3"].map((t) => feedEntry(t))),
+      error: null,
+    });
+    await initUpdatePanel(asApi(m));
+    const details = $<HTMLDetailsElement>("updateNotes");
+    expect(details.hidden).toBe(true);
+
+    m.cb.update!(updateStatus({ state: "available", latestVersion: "1.3.0" }));
+    expect(details.hidden).toBe(false);
+    expect($("updateNotesSummary").textContent).toBe("v1.3.0 の変更内容を表示");
+    details.open = true;
+    details.dispatchEvent(new Event("toggle"));
+    await flush();
+    expect(Array.from($("updateNotesBody").querySelectorAll("h4")).map((e) => e.textContent)).toEqual(["v1.3.0"]);
+
+    m.cb.update!(updateStatus({ state: "ready", latestVersion: "1.3.0" }));
+    expect(details.open).toBe(true);
+    m.cb.update!(updateStatus({ state: "available", latestVersion: "1.4.0" }));
+    expect(details.open).toBe(false);
+    expect($("updateNotesSummary").textContent).toBe("v1.4.0 の変更内容を表示");
+
+    m.cb.update!(updateStatus({ state: "latest" }));
+    expect(details.hidden).toBe(true);
+    details.open = true;
+    details.dispatchEvent(new Event("toggle"));
+    await flush();
+    expect($("updateNotesBody").textContent).toBe("リリースノートはありません");
   });
 
   it("更新の方法とトーストの設定欄がある", () => {
