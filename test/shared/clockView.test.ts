@@ -18,13 +18,14 @@ describe("applyClockStyle", () => {
   it("フォント・色・余白・影を適用する", () => {
     const el = makeEls();
     applyClockStyle(el, settings());
-    expect(el.box.style.fontFamily).toBe('"UDEV Gothic", sans-serif');
+    // 引用符を残すかどうかはDOMの実装次第なので、有無を問わない
+    expect(el.box.style.fontFamily).toMatch(/^"?UDEV Gothic"?, sans-serif$/);
     expect(el.box.style.fontWeight).toBe("600");
     expect(el.box.style.color).toBe("rgb(255, 255, 255)");
     expect(el.box.style.background).toContain("rgba(0, 0, 0, 0.2)");
     expect(el.box.style.padding).toBe("0px");
     expect(el.box.style.borderRadius).toBe("8px");
-    expect(el.box.style.textShadow).toBe("0.7px 0.7px 4px rgba(0, 0, 0, 0.5)");
+    expect(el.box.style.textShadow).toBe("rgba(0, 0, 0, 0.5) 0.7px 0.7px 4px");
     expect(el.line1.style.fontSize).toBe("16px");
     expect(el.line2.style.fontSize).toBe("28px");
     expect(el.line1.hidden).toBe(false);
