@@ -121,12 +121,14 @@ jobs:
         with:
           name: DeskTick-${{ github.ref_name }}-signed
           path: release/DeskTick
+      # アプリはプレリリースを更新の対象にしないので、動作を確かめてから手動で正式なリリースにする（RELEASING.md）
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
             --title "DeskTick $GITHUB_REF_NAME" \
             --notes "DeskTick $GITHUB_REF_NAME — DeskTick.exe と config.json を同じディレクトリに置いて起動してください。DeskTick-update.json と .sig は、アプリの更新機能が使う署名ファイルです（手動で置く必要はありません）。" \
             release/DeskTick/DeskTick.exe \
