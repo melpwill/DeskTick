@@ -32,7 +32,7 @@ import { anchoredBounds, contentSize, defaultPosition, pickDisplay, type Rect, t
 import { createReleaseNotesSource, type ReleaseNotesSource } from "@/main/releaseNotes";
 import { diffSettings, type SettingsChanges } from "@/main/settingsChanges";
 import { createSettingsStore, type SettingsStore } from "@/main/store";
-import { canWriteBeside, cleanupUpdateFiles, stageExe, swapExe } from "@/main/updateFiles";
+import { canWriteBeside, cleanupUpdateFiles, type HelperCommand, stageExe, swapCommand } from "@/main/updateFiles";
 import { UPDATE_PUBLIC_KEYS } from "@/main/updateKeys";
 import { createUpdater, type Updater } from "@/main/updater";
 import { type AlertDef, alertText, allAlerts, isDialogAlert, safeColor } from "@/shared/alerts";
@@ -56,6 +56,7 @@ let clockWin: BrowserWindow | null = null;
 let settingsWin: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let placed: boolean = false;
+let swapHelperStarted: boolean = false;
 
 /**
  * @description - 実際の.exeのパスを返す
@@ -314,29 +315,46 @@ const openReleasePage = (): void => {
 };
 
 /**
- * @description - 差し替えたexeを起動し直す（二重起動の防止を解いてから新しいプロセスを起動し、自分は終了する）
- * @return {void} - なし
+ * @description - ダウンロード済みの更新があれば、アプリの終了後にexeを差し替えるヘルパーを起動する（1回だけ）
+ * @param {boolean} relaunch - 差し替えた後に新しいバージョンを起動するか
+ * @return {ChildProcess | null} - 起動したヘルパー（差し替えるものがなければnull）
  */
-const restartForUpdate = (): void => {
+const startSwapHelper = (relaunch: boolean): ChildProcess | null => {
   const exe: string | undefined = process.env.PORTABLE_EXECUTABLE_FILE;
-  if (updater.status.state !== "ready" || !exe) return;
-  store.flush();
-  app.releaseSingleInstanceLock();
+  if (swapHelperStarted || updater?.status.state !== "ready" || !exe) return null;
+  swapHelperStarted = true;
+  const cmd: HelperCommand = swapCommand(exe, relaunch, process.env.SystemRoot);
   const env: NodeJS.ProcessEnv = Object.fromEntries(
     Object.entries(process.env).filter(([k]: [string, string | undefined]) => !k.startsWith("PORTABLE_EXECUTABLE_")),
   );
-  const child: ChildProcess = spawn(exe, [], { cwd: path.dirname(exe), detached: true, stdio: "ignore", env });
-  child.once("spawn", () => {
-    child.unref();
-    app.quit();
+  const child: ChildProcess = spawn(cmd.file, cmd.args, {
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true,
+    env: { ...env, ...cmd.env },
   });
+  child.once("spawn", () => child.unref());
+  child.once("error", () => {
+    swapHelperStarted = false;
+  });
+  return child;
+};
+
+/**
+ * @description - 終了してexeを差し替え、新しいバージョンで起動し直す（起動はヘルパーが差し替えの後に行う）
+ * @return {void} - なし
+ */
+const restartForUpdate = (): void => {
+  store.flush();
+  const child: ChildProcess | null = startSwapHelper(true);
+  if (!child) return;
+  child.once("spawn", () => app.quit());
   child.once("error", (e: Error) => {
-    app.requestSingleInstanceLock();
     void dialog.showMessageBox({
       type: "warning",
       title: PRODUCT_NAME,
-      message: "新しいバージョンを起動できませんでした",
-      detail: `DeskTickを終了してから、もう一度起動してください。\n${e.message}`,
+      message: "更新を適用できませんでした",
+      detail: `exeを差し替える処理（PowerShell）を起動できませんでした。リリースページから手動で更新してください。\n${e.message}`,
     });
   });
 };
@@ -520,7 +538,6 @@ const createAppUpdater = (): Updater =>
     files: {
       canWrite: canWriteBeside,
       stage: stageExe,
-      swap: (exe: string) => swapExe(exe),
       cleanup: cleanupUpdateFiles,
     },
     get: httpGet,
@@ -588,6 +605,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on("before-quit", () => {
     updater?.stop();
     store?.flush();
+    startSwapHelper(false);
   });
 
   void app.whenReady().then(boot);

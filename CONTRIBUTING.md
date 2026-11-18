@@ -60,7 +60,7 @@ src/
     http.ts               許可したホストだけをたどるHTTPS GET（転送・大きさ・時間の制限）
     updateManifest.ts     署名付きマニフェストの検証（Ed25519・SHA-256）
     updateKeys.ts         署名を検証する公開鍵
-    updateFiles.ts        exeの書き込み・差し替え・後片付け
+    updateFiles.ts        exeの書き込み・終了後に差し替えるコマンド・後片付け
   renderer/               画面側
     clock.ts              時計ウィンドウ
     alertDialog.ts        ダイアログ通知の画面

@@ -52,12 +52,6 @@ export interface UpdateFiles {
    */
   stage(exe: string, data: Uint8Array, sha256: string): Promise<string>;
   /**
-   * @description - 書き込んだexeと現在のexeを入れ替える
-   * @param {string} exe - exeのパス
-   * @return {Promise<void>} - 完了
-   */
-  swap(exe: string): Promise<void>;
-  /**
    * @description - 前回の更新で残ったファイルを消す
    * @param {string} exe - exeのパス
    * @return {Promise<void>} - 完了
@@ -123,7 +117,7 @@ export interface Updater {
    */
   check(): Promise<UpdateStatus>;
   /**
-   * @description - 見つかった新しいバージョンをダウンロードし、exeを差し替える
+   * @description - 見つかった新しいバージョンをダウンロードし、exeの横に置く（差し替えはアプリの終了後）
    * @return {Promise<UpdateStatus>} - 処理後の状態
    */
   install(): Promise<UpdateStatus>;
@@ -235,7 +229,7 @@ export const createUpdater = (opts: UpdaterOptions): Updater => {
   };
 
   /**
-   * @description - 確認中・ダウンロード中・差し替え済み（再起動待ち）かを判定する
+   * @description - 確認中・ダウンロード中・ダウンロード済み（終了時に差し替え）かを判定する
    * @return {boolean} - 新たな確認や差し替えをしない状態ならtrue
    */
   const isBusy = (): boolean =>
@@ -267,7 +261,7 @@ export const createUpdater = (opts: UpdaterOptions): Updater => {
   };
 
   /**
-   * @description - 今すぐ新しいバージョンを確認する（確認中・ダウンロード中・差し替え済みなら何もしない）
+   * @description - 今すぐ新しいバージョンを確認する（確認中・ダウンロード中・ダウンロード済みなら何もしない）
    * @return {Promise<UpdateStatus>} - 確認後の状態
    */
   const check = async (): Promise<UpdateStatus> => {
@@ -291,7 +285,7 @@ export const createUpdater = (opts: UpdaterOptions): Updater => {
   };
 
   /**
-   * @description - 見つかった新しいバージョンをダウンロードし、exeを差し替える
+   * @description - 見つかった新しいバージョンをダウンロードし、exeの横に置く（差し替えはアプリの終了後）
    * @return {Promise<UpdateStatus>} - 処理後の状態
    */
   const install = async (): Promise<UpdateStatus> => {
@@ -311,7 +305,6 @@ export const createUpdater = (opts: UpdaterOptions): Updater => {
         throw new Error("ダウンロードしたファイルが壊れています");
       }
       await opts.files.stage(target, data, manifest.sha256);
-      await opts.files.swap(target);
       pending = null;
       setStatus({ state: "ready", progress: null });
     } catch (e) {
