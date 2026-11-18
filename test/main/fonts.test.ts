@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFontLister, parseFontList } from "@/main/fonts";
 
 type ExecCallback = (err: Error | null, stdout: string) => void;
 
 const mocks = vi.hoisted(() => ({ execFile: vi.fn() }));
 vi.mock("child_process", () => ({ execFile: mocks.execFile }));
-
-const load = async () => (await import("@/main/fonts")).listFonts;
 
 const respond = (err: Error | null, stdout = ""): void => {
   mocks.execFile.mockImplementationOnce((_file: string, _args: string[], _opts: unknown, cb: ExecCallback) =>
@@ -14,13 +13,12 @@ const respond = (err: Error | null, stdout = ""): void => {
 };
 
 beforeEach(() => {
-  vi.resetModules();
   mocks.execFile.mockReset();
 });
 
 describe("listFonts", () => {
   it("PowerShellを非表示で実行し、フォント名を解析・トリム・重複除去・並べ替えする", async () => {
-    const listFonts = await load();
+    const listFonts = createFontLister();
     respond(null, "Meiryo\r\n  Arial  \r\n\r\nArial\nBIZ UDGothic\n");
     await expect(listFonts()).resolves.toEqual(["Arial", "BIZ UDGothic", "Meiryo"]);
 
@@ -32,7 +30,7 @@ describe("listFonts", () => {
   });
 
   it("初回呼び出し後は結果をキャッシュする", async () => {
-    const listFonts = await load();
+    const listFonts = createFontLister();
     respond(null, "Arial\n");
     const a = listFonts();
     const b = listFonts();
@@ -43,7 +41,7 @@ describe("listFonts", () => {
   });
 
   it("エラー時は[]を返し、次の呼び出しで再試行する", async () => {
-    const listFonts = await load();
+    const listFonts = createFontLister();
     respond(new Error("powershell missing"));
     await expect(listFonts()).resolves.toEqual([]);
     respond(null, "Consolas\n");
@@ -53,8 +51,7 @@ describe("listFonts", () => {
 });
 
 describe("parseFontList", () => {
-  it("トリムし、空行と重複を除いてロケール順に並べる", async () => {
-    const { parseFontList } = await import("@/main/fonts");
+  it("トリムし、空行と重複を除いてロケール順に並べる", () => {
     expect(parseFontList("b\r\n a \n\nB\na\n")).toEqual(["a", "b", "B"]);
     expect(parseFontList("")).toEqual([]);
   });
@@ -62,7 +59,6 @@ describe("parseFontList", () => {
 
 describe("createFontLister", () => {
   it("リスターごとに独立したキャッシュを持つ", async () => {
-    const { createFontLister } = await import("@/main/fonts");
     respond(null, "Arial\n");
     respond(null, "Meiryo\n");
     await expect(createFontLister()()).resolves.toEqual(["Arial"]);
